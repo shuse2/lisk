@@ -300,7 +300,6 @@ describe('transport', function () {
 			describe('when library.schema.validate fails', function () {
 
 				it('should call series callback with error = "Invalid signatures body"', function (done) {
-
 					var err = new Error('Transaction did not match schema');
 					err.code = 'INVALID_FORMAT';
 					library.schema.validate = sinon.stub().callsArgWith(2, err);
@@ -320,7 +319,6 @@ describe('transport', function () {
 				describe('for every signature in signatures', function () {
 
 					it('should call __private.receiveSignature with signature', function (done) {
-
 						__private.receiveSignatures({
 							signatures: [SAMPLE_SIGNATURE_1, SAMPLE_SIGNATURE_2]
 						}, function (err) {
