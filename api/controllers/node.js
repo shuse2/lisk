@@ -17,24 +17,33 @@ var _ = require('lodash');
 var checkIpInList = require('../../helpers/checkIpInList.js');
 var apiCodes = require('../../helpers/apiCodes');
 var swaggerHelper = require('../../helpers/swagger');
-var ApiError = require('../../helpers/apiError');
 
 // Private Fields
 var modules;
 var config;
 
 /**
- * Initializes with scope content and private variables:
- * - modules
- * @class NodeController
- * @classdesc Main System methods.
- * @param {scope} scope - App instance.
+ * @module controllers/node
+ * @requires lodash
+ * @requires module:helpers/apiCodes.FORBIDDEN
+ * @requires module:helpers/apiCodes.NOT_FOUND
+ * @requires module:helpers/checkIpInList
+ * @requires module:helpers/swagger.generateParamsErrorObject
+ * @requires module:helpers/swagger.invalidParams
+ * @param {Object} scope - App instance.
+ * @TODO: add description of the module
  */
 function NodeController (scope) {
 	modules = scope.modules;
 	config = scope.config;
 }
 
+/**
+ * @public
+ * @param {Object} context
+ * @param {function} next
+ * @TODO: add description of the function and its parameters
+ */
 NodeController.getConstants = function (context, next) {
 	modules.node.shared.getConstants(null, function (err, data) {
 		try {
@@ -65,6 +74,12 @@ NodeController.getConstants = function (context, next) {
 	});
 };
 
+/**
+ * @public
+ * @param {Object} context
+ * @param {function} next
+ * @TODO: add description of the function and its parameters
+ */
 NodeController.getStatus = function (context, next) {
 	modules.node.shared.getStatus(null, function (err, data) {
 		try {
@@ -90,6 +105,12 @@ NodeController.getStatus = function (context, next) {
 	});
 };
 
+/**
+ * @public
+ * @param {Object} context
+ * @param {function} next
+ * @TODO: add description of the function and its parameters
+ */
 NodeController.getForgingStatus = function (context, next) {
 	if (!checkIpInList(config.forging.access.whiteList, context.request.ip)) {
 		context.statusCode = apiCodes.FORBIDDEN;
@@ -105,6 +126,12 @@ NodeController.getForgingStatus = function (context, next) {
 	});
 };
 
+/**
+ * @public
+ * @param {Object} context
+ * @param {function} next
+ * @TODO: add description of the function and its parameters
+ */
 NodeController.updateForgingStatus = function (context, next) {
 	if (!checkIpInList(config.forging.access.whiteList, context.request.ip)) {
 		context.statusCode = apiCodes.FORBIDDEN;
@@ -124,6 +151,12 @@ NodeController.updateForgingStatus = function (context, next) {
 	});
 };
 
+/**
+ * @public
+ * @param {Object} context
+ * @param {function} next
+ * @TODO: add description of the function and its parameters
+ */
 NodeController.getPooledTransactions = function (context, next) {
 	var invalidParams = swaggerHelper.invalidParams(context.request);
 
