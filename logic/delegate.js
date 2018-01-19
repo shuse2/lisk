@@ -232,15 +232,10 @@ Delegate.prototype.apply = function (trs, block, sender, cb) {
 	var data = {
 		publicKey: trs.senderPublicKey,
 		address: sender.address,
-		u_isDelegate: 0,
 		isDelegate: 1,
-		vote: 0
+		vote: 0,
+		username: trs.asset.delegate.username
 	};
-
-	if (trs.asset.delegate.username) {
-		data.u_username = null;
-		data.username = trs.asset.delegate.username;
-	}
 
 	async.series([
 		function (seriesCb) {
@@ -288,13 +283,8 @@ Delegate.prototype.applyUnconfirmed = function (trs, sender, cb) {
 		publicKey: trs.senderPublicKey,
 		address: sender.address,
 		u_isDelegate: 1,
-		isDelegate: 0
+		u_username: trs.asset.delegate.username
 	};
-
-	if (trs.asset.delegate.username) {
-		data.username = null;
-		data.u_username = trs.asset.delegate.username;
-	}
 
 	async.series([
 		function (seriesCb) {
