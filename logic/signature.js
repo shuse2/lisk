@@ -141,7 +141,6 @@ Signature.prototype.apply = function (trs, block, sender, cb) {
 	modules.accounts.setAccountAndGet({
 		address: sender.address,
 		secondSignature: 1,
-		u_secondSignature: 0,
 		secondPublicKey: trs.asset.signature.publicKey
 	}, cb);
 };
