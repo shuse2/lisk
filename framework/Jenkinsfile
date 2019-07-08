@@ -54,23 +54,6 @@ def run_jest(test_name) {
 
 def teardown_mocha(test_name) {
 	// teardown_mocha() gets called in post actions and so we don't want it to fail
-	try {
-		nvm(getNodejsVersion()) {
-			dir('framework') {
-				sh """
-				rm -rf coverage_mocha_${test_name}; mkdir -p coverage_mocha_${test_name}
-				npx istanbul report --root framework/test/mocha/.coverage-unit/ --dir framework/test/mocha/.coverage-unit/
-				cp framework/test/mocha/.coverage-unit/lcov.info coverage_mocha_${test_name}/ || true
-				npx istanbul report cobertura --root framework/test/mocha/.coverage-unit/ --dir framework/test/mocha/.coverage-unit/
-				cp framework/test/mocha/.coverage-unit/cobertura-coverage.xml coverage_mocha_${test_name}/ || true
-				curl http://localhost:4000/coverage/download --output functional-coverage.zip
-				unzip functional-coverage.zip lcov.info -d coverage_mocha_${test_name}/functional/
-				"""
-			}
-		}
-	} catch(err) {
-		println "Could gather coverage statistics from mocha:\n${err}"
-	}
 	dir('framework') {
 		stash name: "coverage_mocha_${test_name}", includes: "coverage_mocha_${test_name}/"
 	}
@@ -90,19 +73,6 @@ def teardown_mocha(test_name) {
 
 def teardown_jest(test_name) {
 	// teardown_mocha() gets called in post actions and so we don't want it to fail
-	try {
-		dir('framework') {
-			nvm(getNodejsVersion()) {
-				sh """
-				rm -rf coverage_jest_${test_name}; mkdir -p coverage_jest_${test_name}
-				cp .coverage/${test_name}/lcov.info coverage_jest_${test_name}/ || echo "Jest lcov coverage not found"
-				cp .coverage/${test_name}/cobertura-coverage.xml coverage_jest_${test_name}/ || echo "Jest cobertura coverage not found"
-				"""
-			}
-		}
-	} catch(err) {
-		println "Could gather coverage statistics from jest:\n${err}"
-	}
 	dir('framework') {
 		stash name: "coverage_jest_${test_name}", includes: "coverage_jest_${test_name}/", allowEmpty: true
 	}
@@ -283,7 +253,12 @@ pipeline {
 			// but it can't hurt to make sure no old coverage files remain
 			sh 'rm -rf coverage; mkdir -p coverage'
 			script {
-				sh './scripts/collect_coverage.sh'
+				dir('scripts') {
+					sh """
+					sh collect_coverage.sh
+					cat .coverage/coverage.json
+					"""
+				}
 				dir('coverage') {
 					['get', 'post', 'put', 'ws', 'unit', 'integration'].each {
 						// some test stages might have failed and have no coverage data
