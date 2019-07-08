@@ -283,6 +283,7 @@ pipeline {
 			// but it can't hurt to make sure no old coverage files remain
 			sh 'rm -rf coverage; mkdir -p coverage'
 			script {
+				sh './scripts/collect_coverage.sh'
 				dir('coverage') {
 					['get', 'post', 'put', 'ws', 'unit', 'integration'].each {
 						// some test stages might have failed and have no coverage data
