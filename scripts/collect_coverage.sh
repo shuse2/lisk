@@ -19,3 +19,4 @@ cp ./.coverage/unit/coverage-final.json ./.nyc_output/coverage-framework-unit.js
 cp -r ./commander/.nyc_output/* ./.nyc_output
 
 npx nyc merge ./.nyc_output .coverage/coverage.json
+npx nyc report --report-dir .coverage --reporter=clover --reporter=text
