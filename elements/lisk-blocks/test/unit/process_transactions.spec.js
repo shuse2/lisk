@@ -17,7 +17,7 @@
 const { Status: TransactionStatus } = require('@liskhq/lisk-transactions');
 const {
 	composeTransactionSteps,
-} = require('../../../../../../src/modules/chain/blocks/transactions/compose_transaction_steps');
+} = require('../../src/transactions/compose_transaction_steps');
 
 describe('process_transactions', () => {
 	describe('#composeTransactionSteps', () => {

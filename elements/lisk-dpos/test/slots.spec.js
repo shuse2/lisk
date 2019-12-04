@@ -14,7 +14,7 @@
 
 'use strict';
 
-const { Slots } = require('../../../../../../src/modules/chain/dpos');
+const { Slots } = require('../src');
 
 describe('Slots', () => {
 	let slots;

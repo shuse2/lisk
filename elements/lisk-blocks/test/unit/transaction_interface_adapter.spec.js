@@ -23,7 +23,7 @@ const {
 } = require('@liskhq/lisk-transactions');
 const {
 	TransactionInterfaceAdapter,
-} = require('../../../../../../src/modules/chain/blocks/transaction_interface_adapter');
+} = require('../../src/transaction_interface_adapter');
 const {
 	devnetNetworkIdentifier: networkIdentifier,
 } = require('../../../../common/network_identifier');

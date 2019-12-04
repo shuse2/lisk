@@ -17,9 +17,9 @@
 const BigNum = require('@liskhq/bignum');
 const { getAddressFromPublicKey } = require('@liskhq/lisk-cryptography');
 const { Status: TransactionStatus } = require('@liskhq/lisk-transactions');
-const transactionHandlers = require('../../../../../../src/modules/chain/blocks/transactions/transactions_handlers');
-const votesWeightHandler = require('../../../../../../src/modules/chain/blocks/transactions/votes_weight');
-const exceptionHandlers = require('../../../../../../src/modules/chain/blocks/transactions/exceptions_handlers');
+const transactionHandlers = require('../../src/transactions/transactions_handlers');
+const votesWeightHandler = require('../../src/transactions/votes_weight');
+const exceptionHandlers = require('../../src/transactions/exceptions_handlers');
 const {
 	Transaction: transactionFixture,
 } = require('../../../../fixtures/transactions');
@@ -87,9 +87,9 @@ describe('transactions', () => {
 	describe('#checkAllowedTransactions', () => {
 		it('should return a proper response format', async () => {
 			// Act
-			const response = transactionHandlers.checkAllowedTransactions(dummyState)(
-				[trs1],
-			);
+			const response = transactionHandlers.checkAllowedTransactions(
+				dummyState,
+			)([trs1]);
 
 			// Assert
 			expect(response).to.have.deep.property('transactionsResponses', [
@@ -109,9 +109,9 @@ describe('transactions', () => {
 			};
 
 			// Act
-			const response = transactionHandlers.checkAllowedTransactions(dummyState)(
-				[disallowedTransaction],
-			);
+			const response = transactionHandlers.checkAllowedTransactions(
+				dummyState,
+			)([disallowedTransaction]);
 
 			// Assert
 			expect(response.transactionsResponses.length).to.equal(1);
@@ -128,9 +128,7 @@ describe('transactions', () => {
 				Error,
 			);
 			expect(response.transactionsResponses[0].errors[0].message).to.equal(
-				`Transaction type ${
-					disallowedTransaction.type
-				} is currently not allowed.`,
+				`Transaction type ${disallowedTransaction.type} is currently not allowed.`,
 			);
 		});
 
@@ -139,9 +137,9 @@ describe('transactions', () => {
 			const { matcher, ...transactionWithoutMatcherImpl } = trs1;
 
 			// Act
-			const response = transactionHandlers.checkAllowedTransactions(dummyState)(
-				[transactionWithoutMatcherImpl],
-			);
+			const response = transactionHandlers.checkAllowedTransactions(
+				dummyState,
+			)([transactionWithoutMatcherImpl]);
 
 			// Assert
 			expect(response.transactionsResponses.length).to.equal(1);
@@ -164,9 +162,9 @@ describe('transactions', () => {
 			};
 
 			// Act
-			const response = transactionHandlers.checkAllowedTransactions(dummyState)(
-				[allowedTransaction],
-			);
+			const response = transactionHandlers.checkAllowedTransactions(
+				dummyState,
+			)([allowedTransaction]);
 
 			// Assert
 			expect(response.transactionsResponses.length).to.equal(1);
@@ -223,9 +221,7 @@ describe('transactions', () => {
 				Error,
 			);
 			expect(response.transactionsResponses[1].errors[0].message).to.equal(
-				`Transaction type ${
-					testTransactions[1].type
-				} is currently not allowed.`,
+				`Transaction type ${testTransactions[1].type} is currently not allowed.`,
 			);
 		});
 	});
