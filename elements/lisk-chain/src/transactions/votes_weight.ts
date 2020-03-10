@@ -27,12 +27,6 @@ interface TransferAsset {
 	readonly recipientId: string;
 }
 
-interface InTransferAsset {
-	readonly inTransfer: {
-		readonly dappId: string;
-	};
-}
-
 interface DelegateCalculateInput {
 	readonly delegatePublicKey: string;
 	readonly amount: string | BigInt;
@@ -43,7 +37,6 @@ interface DelegateCalculateInput {
 /* tslint:disable:no-magic-numbers */
 const TRANSACTION_TYPES_SEND = [0, 8];
 const TRANSACTION_TYPES_VOTE = [3, 11];
-const TRANSACTION_TYPES_IN_TRANSFER = [6];
 const TRANSACTION_TYPES_OUT_TRANSFER = [7];
 /* tslint:enable:no-magic-numbers */
 
@@ -70,7 +63,7 @@ const updateDelegateVote = async (
 };
 
 const getRecipientAddress = (
-	stateStore: StateStore,
+	_: StateStore,
 	transaction: BaseTransaction,
 ): string | undefined => {
 	if (
@@ -81,18 +74,6 @@ const getRecipientAddress = (
 		].includes(transaction.type)
 	) {
 		return (transaction.asset as TransferAsset).recipientId;
-	}
-
-	/**
-	 *  If transaction type is IN_TRANSFER then,
-	 * `recipientId` is the owner of dappRegistration transaction
-	 */
-	if (TRANSACTION_TYPES_IN_TRANSFER.includes(transaction.type)) {
-		const dappTransaction = stateStore.transaction.get(
-			(transaction.asset as InTransferAsset).inTransfer.dappId,
-		);
-
-		return getAddressFromPublicKey(dappTransaction.senderPublicKey);
 	}
 
 	return undefined;
@@ -253,55 +234,3 @@ export const undo = async (
 	await updateDelegateVotes(stateStore, transaction, true);
 };
 
-export const prepare = async (
-	stateStore: StateStore,
-	transactions: ReadonlyArray<BaseTransaction>,
-) => {
-	const publicKeys = [];
-	for (const transaction of transactions) {
-		// Get delegate public keys whom sender voted for
-		const senderVotedAccount = await stateStore.account.getOrDefault(
-			transaction.senderId,
-		);
-		const senderVotedPublicKeys =
-			senderVotedAccount.votedDelegatesPublicKeys || [];
-
-		const recipientId = getRecipientAddress(stateStore, transaction);
-
-		// Get delegate public keys whom recipient voted for
-		const recipientVotedAccount =
-			recipientId && (await stateStore.account.getOrDefault(recipientId));
-		const recipientVotedPublicKeys =
-			(recipientVotedAccount &&
-				recipientVotedAccount.votedDelegatesPublicKeys) ||
-			[];
-
-		publicKeys.push({
-			senderVotedPublicKeys,
-			recipientVotedPublicKeys,
-		});
-	}
-
-	const publicKeySet = new Set<string>();
-	for (const publicKey of publicKeys) {
-		for (const sender of publicKey.senderVotedPublicKeys) {
-			publicKeySet.add(sender);
-		}
-		for (const recipient of publicKey.recipientVotedPublicKeys) {
-			publicKeySet.add(recipient);
-		}
-	}
-
-	// Get unique public key list from merged arrays
-	const senderRecipientVotedPublicKeys = Array.from(publicKeySet);
-
-	if (senderRecipientVotedPublicKeys.length === 0) {
-		return true;
-	}
-
-	const cacheFilter = senderRecipientVotedPublicKeys.map(publicKey => ({
-		address: getAddressFromPublicKey(publicKey),
-	}));
-
-	return stateStore.account.cache(cacheFilter);
-};

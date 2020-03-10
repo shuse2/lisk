@@ -121,119 +121,36 @@ export interface ChainState {
 	readonly value: string;
 }
 
-export interface StorageTransaction {
 	// tslint:disable-next-line no-any
-	readonly batch: <T = any>(input: any[]) => Promise<T>;
+export interface BatchChain<K = any, V = any> {
+    put(key: K, value: V): this;
+    del(key: K): this;
+    clear(): this;
+    write(): Promise<this>;
+	// tslint:disable-next-line no-mixed-interface
+    readonly length: number;
 }
 
-export interface StorageFilter {
-	readonly [key: string]:
-		| string
-		| number
-		| string[]
-		| ReadonlyArray<string>
-		| number[]
-		| ReadonlyArray<number>
-		| boolean
-		| null;
+export interface ReadStreamOption {
+    readonly gt?: string;
+    readonly gte?: string;
+    readonly lt?: string;
+    readonly lte?: string;
+    readonly reverse?: boolean;
+    readonly limit?: number;
+    readonly keys?: boolean;
+    readonly values?: boolean;
 }
 
-export type StorageFilters =
-	| StorageFilter
-	| StorageFilter[]
-	| ReadonlyArray<StorageFilter>;
-
-export interface StorageOptions {
-	readonly limit?: number | null;
-	readonly extended?: boolean;
-	readonly offset?: number;
-	readonly sort?: string | string[];
-}
-
-export interface ChainStateEntity {
-	readonly get: (
-		filters?: StorageFilters,
-		options?: StorageOptions,
-		tx?: StorageTransaction,
-	) => Promise<ChainState[]>;
-	readonly getKey: (
-		key: string,
-		tx?: StorageTransaction,
-	) => Promise<string | undefined>;
-	readonly setKey: (
-		key: string,
-		value: string,
-		tx?: StorageTransaction,
-	) => Promise<void>;
-	readonly delete: () => Promise<void>;
-}
-
-export interface StorageEntity<T> {
-	readonly get: (
-		filters?: StorageFilters,
-		options?: StorageOptions,
-		tx?: StorageTransaction,
-	) => Promise<T[]>;
-	readonly getOne: (
-		filters?: StorageFilters,
-		options?: StorageOptions,
-		tx?: StorageTransaction,
-	) => Promise<T>;
-	readonly isPersisted: (
-		filters?: StorageFilters,
-		options?: StorageOptions,
-		tx?: StorageTransaction,
-	) => Promise<boolean>;
-	readonly count: (
-		filters?: StorageFilters,
-		options?: StorageOptions,
-		tx?: StorageTransaction,
-	) => Promise<number>;
-	readonly upsert: (
-		filters: StorageFilters,
-		// tslint:disable-next-line no-any
-		data: any,
-		options: StorageOptions | null,
-		tx?: StorageTransaction,
-	) => Promise<void>;
-	readonly create: (
-		// tslint:disable-next-line no-any
-		data: any,
-		filters?: StorageFilters,
-		tx?: StorageTransaction,
-	) => Promise<void>;
-	readonly delete: (
-		// tslint:disable-next-line no-any
-		filters?: StorageFilters,
-		options?: StorageOptions | null,
-		tx?: StorageTransaction,
-	) => Promise<void>;
-}
-
-export interface AccountStorageEntity extends StorageEntity<AccountJSON> {
-	readonly resetMemTables: () => Promise<void>;
-}
-
-export interface BlockStorageEntity extends StorageEntity<BlockJSON> {
-	readonly begin: <T>(
-		name: string,
-		fn: (tx: StorageTransaction) => Promise<T>,
-	) => Promise<T>;
-}
-
-export interface TempBlockStorageEntity extends StorageEntity<TempBlock> {
-	readonly isEmpty: () => Promise<boolean>;
-	readonly truncate: () => void;
-}
-
-export interface Storage {
-	readonly entities: {
-		readonly Block: BlockStorageEntity;
-		readonly Account: AccountStorageEntity;
-		readonly Transaction: StorageEntity<TransactionJSON>;
-		readonly ChainState: ChainStateEntity;
-		readonly TempBlock: TempBlockStorageEntity;
-	};
+export interface DB {
+	// tslint:disable-next-line no-any
+	get(rawKey: string | number): Promise<any>;
+	exists(rawKey: string | number): Promise<boolean>;
+	// tslint:disable-next-line no-any
+    put(key: string, val: any): Promise<void>;
+    del(key: string): Promise<void>;
+	createReadStream(options?: ReadStreamOption): NodeJS.ReadableStream;
+	batch(): BatchChain;
 }
 
 export interface ExceptionOptions {

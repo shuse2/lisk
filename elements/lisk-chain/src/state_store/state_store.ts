@@ -12,39 +12,33 @@
  * Removal or modification of this copyright notice is prohibited.
  */
 
-import { Storage, StorageTransaction } from '../types';
+import { DataAccess } from '../data_access';
+import { BatchChain } from '../types';
 
 import { AccountStore } from './account_store';
 import { ChainStateStore } from './chain_state_store';
-import { TransactionStore } from './transaction_store';
 
 export class StateStore {
 	public readonly account: AccountStore;
-	public readonly transaction: TransactionStore;
-	public readonly chainState: ChainStateStore;
+	public readonly chain: ChainStateStore;
 
-	public constructor(storage: Storage) {
-		this.account = new AccountStore(storage.entities.Account);
-		this.transaction = new TransactionStore(storage.entities.Transaction);
-		this.chainState = new ChainStateStore(storage.entities.ChainState);
+	public constructor(dataAccess: DataAccess) {
+		this.account = new AccountStore(dataAccess);
+		this.chain = new ChainStateStore(dataAccess);
 	}
 
 	public createSnapshot(): void {
 		this.account.createSnapshot();
-		this.transaction.createSnapshot();
-		this.chainState.createSnapshot();
+		this.chain.createSnapshot();
 	}
 
 	public restoreSnapshot(): void {
 		this.account.restoreSnapshot();
-		this.transaction.restoreSnapshot();
-		this.chainState.restoreSnapshot();
+		this.chain.restoreSnapshot();
 	}
 
-	public async finalize(tx: StorageTransaction): Promise<void> {
-		await Promise.all([
-			this.account.finalize(tx),
-			this.chainState.finalize(tx),
-		]);
+	public finalize(batch: BatchChain): void {
+		this.account.finalize(batch);
+		this.chain.finalize(batch);
 	}
 }

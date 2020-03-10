@@ -12,20 +12,37 @@
  * Removal or modification of this copyright notice is prohibited.
  */
 
+import {
+	getAddressFromPublicKey,
+	intToBuffer,
+} from '@liskhq/lisk-cryptography';
 import { TransactionJSON } from '@liskhq/lisk-transactions';
 
+import { StateStore } from '../state_store';
+import { AccountJSON, BlockJSON, DB } from '../types';
+
 import {
-	AccountJSON,
-	BlockJSON,
-	Storage as DBStorage,
-	TempBlock,
-} from '../types';
+	DB_KEY_ACCOUNT_STATE,
+	DB_KEY_BLOCKID_BLOCK,
+	DB_KEY_BLOCKID_TXIDS,
+	DB_KEY_CHAIN_STATE,
+	DB_KEY_HEIGHT_BLOCKID,
+	DB_KEY_TEMPBLOCK_HEIGHT_BLOCK,
+	DB_KEY_TXID_TX,
+} from './constants';
+
+const numberToHexString = (num: number): string => {
+	// tslint:disable-next-line no-magic-numbers
+	const buf = intToBuffer(num, 8);
+
+	return buf.toString('hex');
+};
 
 export class Storage {
-	private readonly _storage: DBStorage;
+	private readonly _db: DB;
 
-	public constructor(storage: DBStorage) {
-		this._storage = storage;
+	public constructor(db: DB) {
+		this._db = db;
 	}
 
 	/*
@@ -33,7 +50,7 @@ export class Storage {
 	*/
 
 	public async getBlockHeaderByID(id: string): Promise<BlockJSON> {
-		const [block] = await this._storage.entities.Block.get({ id });
+		const block = await this._db.get(`${DB_KEY_BLOCKID_BLOCK}:${id}`);
 
 		return block;
 	}
@@ -41,75 +58,99 @@ export class Storage {
 	public async getBlockHeadersByIDs(
 		arrayOfBlockIds: ReadonlyArray<string>,
 	): Promise<BlockJSON[]> {
-		const blocks = await this._storage.entities.Block.get(
-			{ id_in: arrayOfBlockIds },
-			{ limit: arrayOfBlockIds.length },
-		);
+		const blocks = [];
+		for (const id of arrayOfBlockIds) {
+			const block = await this.getBlockHeaderByID(id);
+			blocks.push(block);
+		}
 
 		return blocks;
 	}
 
 	public async getBlockHeaderByHeight(height: number): Promise<BlockJSON> {
-		const [block] = await this._storage.entities.Block.get({ height });
+		const blockID = await this._db.get(
+			`${DB_KEY_HEIGHT_BLOCKID}:${height.toString()}`,
+		);
 
-		return block;
+		return this.getBlockHeaderByID(blockID);
 	}
 
 	public async getBlockHeadersByHeightBetween(
 		fromHeight: number,
 		toHeight: number,
 	): Promise<BlockJSON[]> {
-		const blocks = await this._storage.entities.Block.get(
-			{ height_gte: fromHeight, height_lte: toHeight },
-			// tslint:disable-next-line:no-null-keyword
-			{ limit: null, sort: 'height:desc' },
-		);
+		const stream = this._db.createReadStream({
+			gte: `${DB_KEY_HEIGHT_BLOCKID}:${numberToHexString(fromHeight)}`,
+			lte: `${DB_KEY_HEIGHT_BLOCKID}:${numberToHexString(toHeight)}`,
+			reverse: true,
+		});
+		const blockIDs = await new Promise<string[]>((resolve, reject) => {
+			const ids: string[] = [];
+			stream
+				.on('data', ({ value }) => {
+					ids.push(value);
+				})
+				.on('error', error => {
+					reject(error);
+				})
+				.on('end', () => {
+					resolve(ids);
+				});
+		});
 
-		return blocks;
+		return this.getBlockHeadersByIDs(blockIDs);
 	}
 
 	public async getBlockHeadersWithHeights(
 		heightList: ReadonlyArray<number>,
 	): Promise<BlockJSON[]> {
-		const blocks = await this._storage.entities.Block.get(
-			{
-				height_in: heightList,
-			},
-			{
-				sort: 'height:asc',
-				limit: heightList.length,
-			},
-		);
+		const ids = [];
+		for (const height of heightList) {
+			const id = await this._db.get(
+				`${DB_KEY_HEIGHT_BLOCKID}:${numberToHexString(height)}`,
+			);
+			ids.push(id);
+		}
 
-		return blocks;
+		return this.getBlockHeadersByIDs(ids);
 	}
 
 	public async getLastBlockHeader(): Promise<BlockJSON> {
-		const [lastBlockHeader] = await this._storage.entities.Block.get(
-			{},
-			{ limit: 1, sort: 'height:desc' },
-		);
+		const stream = this._db.createReadStream({
+			gt: `${DB_KEY_HEIGHT_BLOCKID}:`,
+			reverse: true,
+			limit: 1,
+		});
+		const [blockID] = await new Promise<string[]>((resolve, reject) => {
+			const ids: string[] = [];
+			stream
+				.on('data', ({ value }) => {
+					ids.push(value);
+				})
+				.on('error', error => {
+					reject(error);
+				})
+				.on('end', () => {
+					resolve(ids);
+				});
+		});
 
-		return lastBlockHeader;
+		return this.getBlockHeaderByID(blockID);
 	}
 
 	public async getLastCommonBlockHeader(
 		arrayOfBlockIds: ReadonlyArray<string>,
 	): Promise<BlockJSON> {
-		const [block] = await this._storage.entities.Block.get(
-			{
-				id_in: arrayOfBlockIds,
-			},
-			{ sort: 'height:desc', limit: 1 },
-		);
+		const blocks = await this.getBlockHeadersByIDs(arrayOfBlockIds);
+		blocks.sort((a, b) => b.height - a.height);
 
-		return block;
+		return blocks[0];
 	}
 
 	public async getBlocksCount(): Promise<number> {
-		const count = await this._storage.entities.Block.count({}, {});
+		const lastBlock = await this.getLastBlockHeader();
 
-		return count;
+		return lastBlock.height;
 	}
 
 	/*
@@ -117,99 +158,209 @@ export class Storage {
 	*/
 
 	public async getBlockByID(id: string): Promise<BlockJSON> {
-		const [block] = await this._storage.entities.Block.get(
-			{ id },
-			{ extended: true },
-		);
+		const blockHeader = await this.getBlockHeaderByID(id);
+		const transactions = await this._getTransactions(id);
 
-		return block;
+		return {
+			...blockHeader,
+			transactions,
+		};
+	}
+
+	private async _getTransactions(id: string): Promise<TransactionJSON[]> {
+		const txIDs = [];
+		try {
+			const ids = await this._db.get(`${DB_KEY_BLOCKID_TXIDS}:${id}`);
+			txIDs.push(...ids);
+		} catch (error) {
+			if (!error.notFound) {
+				throw error;
+			}
+		}
+		if (txIDs.length === 0) {
+			return [];
+		}
+		const transactions = [];
+		for (const txID of txIDs) {
+			const tx = await this._db.get(`${DB_KEY_TXID_TX}:${txID}`);
+			transactions.push(tx);
+		}
+
+		return transactions;
 	}
 
 	public async getBlocksByIDs(
 		arrayOfBlockIds: ReadonlyArray<string>,
 	): Promise<BlockJSON[]> {
-		const blocks = await this._storage.entities.Block.get(
-			{ id_in: arrayOfBlockIds },
-			{ extended: true },
-		);
+		const blocks = [];
+		for (const id of arrayOfBlockIds) {
+			const block = await this.getBlockByID(id);
+			blocks.push(block);
+		}
 
 		return blocks;
 	}
 
 	public async getBlockByHeight(height: number): Promise<BlockJSON> {
-		const [block] = await this._storage.entities.Block.get(
-			{ height },
-			{ extended: true },
-		);
+		const header = await this.getBlockHeaderByHeight(height);
+		const transactions = await this._getTransactions(header.id);
 
-		return block;
+		return {
+			...header,
+			transactions,
+		};
 	}
 
 	public async getBlocksByHeightBetween(
 		fromHeight: number,
 		toHeight: number,
 	): Promise<BlockJSON[]> {
-		const blocks = await this._storage.entities.Block.get(
-			{ height_gte: fromHeight, height_lte: toHeight },
-			// tslint:disable-next-line no-null-keyword
-			{ extended: true, limit: null, sort: 'height:desc' },
+		const headers = await this.getBlockHeadersByHeightBetween(
+			fromHeight,
+			toHeight,
 		);
+		const blocks = [];
+		for (const header of headers) {
+			const transactions = await this._getTransactions(header.id);
+			blocks.push({ ...header, transactions });
+		}
 
 		return blocks;
 	}
 
 	public async getLastBlock(): Promise<BlockJSON> {
-		const [lastBlock] = await this._storage.entities.Block.get(
-			{},
-			{ sort: 'height:desc', limit: 1, extended: true },
-		);
+		const header = await this.getLastBlockHeader();
+		const transactions = await this._getTransactions(header.id);
 
-		return lastBlock;
+		return {
+			...header,
+			transactions,
+		};
 	}
 
-	public async getTempBlocks(): Promise<TempBlock[]> {
-		const tempBlocks = await this._storage.entities.TempBlock.get(
-			{},
-			// tslint:disable-next-line:no-null-keyword
-			{ sort: 'height:asc', limit: null },
-		);
+	public async getTempBlocks(): Promise<BlockJSON[]> {
+		const key = `${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:`;
+		const stream = this._db.createReadStream({
+			gte: key,
+			lte: String.fromCharCode(key.charCodeAt(0) + 1),
+			reverse: true,
+		});
+		const tempBlocks = await new Promise<BlockJSON[]>((resolve, reject) => {
+			const blocks: BlockJSON[] = [];
+			stream
+				.on('data', ({ value }) => {
+					blocks.push(value);
+				})
+				.on('error', error => {
+					reject(error);
+				})
+				.on('end', () => {
+					resolve(blocks);
+				});
+		});
 
 		return tempBlocks;
 	}
 
 	public async isTempBlockEmpty(): Promise<boolean> {
-		const isEmpty = await this._storage.entities.TempBlock.isEmpty();
+		const key = `${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:`;
+		const stream = this._db.createReadStream({
+			gte: key,
+			lte: String.fromCharCode(key.charCodeAt(0) + 1),
+			limit: 1,
+		});
+		const tempBlocks = await new Promise<BlockJSON[]>((resolve, reject) => {
+			const blocks: BlockJSON[] = [];
+			stream
+				.on('data', ({ value }) => {
+					blocks.push(value);
+				})
+				.on('error', error => {
+					reject(error);
+				})
+				.on('end', () => {
+					resolve(blocks);
+				});
+		});
 
-		return isEmpty;
+		return tempBlocks.length === 0;
 	}
 
-	public clearTempBlocks(): void {
-		this._storage.entities.TempBlock.truncate();
+	public async clearTempBlocks(): Promise<void> {
+		const tempBlocks = await this.getTempBlocks();
+		if (tempBlocks.length === 0) {
+			return;
+		}
+		const batch = this._db.batch();
+		for (const temp of tempBlocks) {
+			batch.del(
+				`${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:${numberToHexString(temp.height)}`,
+			);
+		}
+		await batch.write();
 	}
 
 	public async deleteBlocksWithHeightGreaterThan(
 		height: number,
 	): Promise<void> {
-		await this._storage.entities.Block.delete({
-			height_gt: height,
-		});
+		const lastBlockHeader = await this.getLastBlockHeader();
+		const batchSize = 5000;
+		const loops = Math.ceil((lastBlockHeader.height - height + 1) / batchSize);
+		const start = height + 1;
+		// tslint:disable-next-line no-let
+		for (let i = 0; i < loops; i += 1) {
+			// Get all the required info
+			const startHeight = i * batchSize + start + i;
+			const endHeight = startHeight + batchSize - 1;
+			const headers = await this.getBlockHeadersByHeightBetween(
+				startHeight,
+				endHeight,
+			);
+			const blockIDs = headers.map(header => header.id);
+			const transactionIDs = [];
+			const batch = this._db.batch();
+			for (const blockID of blockIDs) {
+				try {
+					const ids = await this._db.get(`${DB_KEY_BLOCKID_TXIDS}:${blockID}`);
+					transactionIDs.push(...ids);
+				} catch (error) {
+					if (!error.notFound) {
+						throw error;
+					}
+				}
+				batch.del(`${DB_KEY_BLOCKID_BLOCK}:${blockID}`);
+				batch.del(`${DB_KEY_BLOCKID_TXIDS}:${blockID}`);
+			}
+			// tslint:disable-next-line no-let
+			for (let j = startHeight; j <= endHeight; j += 1) {
+				batch.del(`${DB_KEY_HEIGHT_BLOCKID}:${numberToHexString(j)}`);
+			}
+			for (const txID of transactionIDs) {
+				batch.del(`${DB_KEY_TXID_TX}:${txID}`);
+			}
+			await batch.write();
+		}
 	}
 
 	public async isBlockPersisted(blockId: string): Promise<boolean> {
-		const isPersisted = await this._storage.entities.Block.isPersisted({
-			blockId,
-		});
-
-		return isPersisted;
+		return this._db.exists(`${DB_KEY_BLOCKID_BLOCK}:${blockId}`);
 	}
 
 	/*
 		ChainState
 	*/
 	public async getChainState(key: string): Promise<string | undefined> {
-		const value = await this._storage.entities.ChainState.getKey(key);
+		const fullKey = `${DB_KEY_CHAIN_STATE}:${key}`;
+		try {
+			const value = await this._db.get(fullKey);
 
-		return value;
+			return value;
+		} catch (error) {
+			if (error.notFound) {
+				return undefined;
+			}
+			throw error;
+		}
 	}
 
 	/*
@@ -218,19 +369,13 @@ export class Storage {
 	public async getAccountsByPublicKey(
 		arrayOfPublicKeys: ReadonlyArray<string>,
 	): Promise<AccountJSON[]> {
-		const accounts = await this._storage.entities.Account.get(
-			{ publicKey_in: arrayOfPublicKeys },
-			{ limit: arrayOfPublicKeys.length },
-		);
+		const addresses = arrayOfPublicKeys.map(getAddressFromPublicKey);
 
-		return accounts;
+		return this.getAccountsByAddress(addresses);
 	}
 
 	public async getAccountByAddress(address: string): Promise<AccountJSON> {
-		const account = await this._storage.entities.Account.getOne(
-			{ address },
-			{ limit: 1 },
-		);
+		const account = await this._db.get(`${DB_KEY_ACCOUNT_STATE}:${address}`);
 
 		return account;
 	}
@@ -238,48 +383,200 @@ export class Storage {
 	public async getAccountsByAddress(
 		arrayOfAddresses: ReadonlyArray<string>,
 	): Promise<AccountJSON[]> {
-		const accounts = await this._storage.entities.Account.get(
-			{ address_in: arrayOfAddresses },
-			{ limit: arrayOfAddresses.length },
-		);
+		const accounts = [];
+		for (const address of arrayOfAddresses) {
+			const account = await this.getAccountByAddress(address);
+			accounts.push(account);
+		}
 
 		return accounts;
 	}
 
 	public async getDelegateAccounts(limit: number): Promise<AccountJSON[]> {
-		const accounts = await this._storage.entities.Account.get(
-			{ isDelegate: true },
-			{ limit, sort: ['voteWeight:desc', 'publicKey:asc'] },
-		);
+		const key = `${DB_KEY_ACCOUNT_STATE}:`;
+		const stream = this._db.createReadStream({
+			gte: key,
+			lte: String.fromCharCode(key.charCodeAt(0) + 1),
+		});
+		const accounts = await new Promise<AccountJSON[]>((resolve, reject) => {
+			const accountJSONs: AccountJSON[] = [];
+			stream
+				.on('data', ({ value }) => {
+					const { username } = value as AccountJSON;
+					if (username) {
+						accountJSONs.push(value);
+					}
+				})
+				.on('error', error => {
+					reject(error);
+				})
+				.on('end', () => {
+					resolve(accountJSONs);
+				});
+		});
+		accounts.sort((a, b) => {
+			const diff = BigInt(b.voteWeight) - BigInt(a.voteWeight);
+			if (diff > BigInt(0)) {
+				return 1;
+			}
+			if (diff < BigInt(0)) {
+				return -1;
+			}
 
-		return accounts;
+			if (a.address > b.address) {
+				return 1;
+			}
+			if (a.address < b.address) {
+				return -1;
+			}
+
+			return 0;
+		});
+
+		return accounts.slice(0, limit);
 	}
 
 	public async resetAccountMemTables(): Promise<void> {
-		await this._storage.entities.Account.resetMemTables();
+		const batchSize = 5000;
+		while (true) {
+			const accountKey = `${DB_KEY_ACCOUNT_STATE}:`;
+			const stream = this._db.createReadStream({
+				gte: accountKey,
+				lte: String.fromCharCode(accountKey.charCodeAt(0) + 1),
+				limit: batchSize,
+			});
+			const accounts = await new Promise<AccountJSON[]>((resolve, reject) => {
+				const accountJSONs: AccountJSON[] = [];
+				stream
+					.on('data', ({ value }) => {
+						accountJSONs.push(value);
+					})
+					.on('error', error => {
+						reject(error);
+					})
+					.on('end', () => {
+						resolve(accountJSONs);
+					});
+			});
+			if (accounts.length === 0) {
+				break;
+			}
+			const batch = this._db.batch();
+			for (const account of accounts) {
+				batch.del(`${accountKey}${account.address}`);
+			}
+			await batch.write();
+		}
+		while (true) {
+			const key = `${DB_KEY_CHAIN_STATE}:`;
+			const stream = this._db.createReadStream({
+				gte: key,
+				lte: String.fromCharCode(key.charCodeAt(0) + 1),
+				limit: batchSize,
+			});
+			const chainStateKeys = await new Promise<string[]>((resolve, reject) => {
+				const keys: string[] = [];
+				stream
+					.on('data', ({ key: chainKey }) => {
+						keys.push(chainKey);
+					})
+					.on('error', error => {
+						reject(error);
+					})
+					.on('end', () => {
+						resolve(keys);
+					});
+			});
+			if (chainStateKeys.length === 0) {
+				break;
+			}
+			const batch = this._db.batch();
+			for (const chainStateKey of chainStateKeys) {
+				batch.del(`${key}${chainStateKey}`);
+			}
+			await batch.write();
+		}
 	}
 
 	/*
 		Transactions
 	*/
+	public async getTransactionByID(
+		transactionId: string,
+	): Promise<TransactionJSON> {
+		const transaction = this._db.get(`${DB_KEY_TXID_TX}:${transactionId}`);
+
+		return transaction;
+	}
 	public async getTransactionsByIDs(
 		arrayOfTransactionIds: ReadonlyArray<string>,
 	): Promise<TransactionJSON[]> {
-		const transactions = await this._storage.entities.Transaction.get(
-			{
-				id_in: arrayOfTransactionIds,
-			},
-			{ limit: arrayOfTransactionIds.length },
-		);
+		const transactions = [];
+		for (const id of arrayOfTransactionIds) {
+			const transaction = await this.getTransactionByID(id);
+			transactions.push(transaction);
+		}
 
 		return transactions;
 	}
 
 	public async isTransactionPersisted(transactionId: string): Promise<boolean> {
-		const isPersisted = await this._storage.entities.Transaction.isPersisted({
-			id: transactionId,
-		});
+		const isPersisted = await this._db.exists(
+			`${DB_KEY_TXID_TX}:${transactionId}`,
+		);
 
 		return isPersisted;
+	}
+
+	/*
+		Save Block
+	*/
+	public async saveBlock(
+		blockJSON: BlockJSON,
+		stateStore: StateStore,
+		removeFromTemp: boolean = false,
+	): Promise<void> {
+		const batch = this._db.batch();
+		const { transactions, ...header } = blockJSON;
+		batch.put(`${DB_KEY_BLOCKID_BLOCK}:${header.id}`, header);
+		batch.put(`${DB_KEY_HEIGHT_BLOCKID}:${header.height}`, header.id);
+		if (transactions.length > 0) {
+			const ids = [];
+			for (const tx of transactions) {
+				ids.push(tx.id);
+				batch.put(`${DB_KEY_TXID_TX}:${tx.id}`, tx);
+			}
+			batch.put(`${DB_KEY_BLOCKID_TXIDS}:${header.id}`, ids);
+		}
+		if (removeFromTemp) {
+			batch.del(`${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:${blockJSON.height}`);
+		}
+		stateStore.finalize(batch);
+		await batch.write();
+	}
+
+	public async deleteBlock(
+		blockJSON: BlockJSON,
+		stateStore: StateStore,
+		saveToTemp: boolean = false,
+	): Promise<void> {
+		const batch = this._db.batch();
+		const { transactions, ...header } = blockJSON;
+		batch.del(`${DB_KEY_BLOCKID_BLOCK}:${header.id}`);
+		batch.del(`${DB_KEY_HEIGHT_BLOCKID}:${header.height}`);
+		if (transactions.length > 0) {
+			for (const tx of transactions) {
+				batch.del(`${DB_KEY_TXID_TX}:${tx.id}`);
+			}
+			batch.del(`${DB_KEY_BLOCKID_TXIDS}:${header.id}`);
+		}
+		if (saveToTemp) {
+			batch.put(
+				`${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:${blockJSON.height}`,
+				blockJSON,
+			);
+		}
+		stateStore.finalize(batch);
+		await batch.write();
 	}
 }

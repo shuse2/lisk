@@ -15,11 +15,7 @@
 import { stringToBuffer } from '@liskhq/lisk-cryptography';
 import { validator } from '@liskhq/lisk-validator';
 
-import {
-	BaseTransaction,
-	StateStore,
-	StateStorePrepare,
-} from './base_transaction';
+import { BaseTransaction, StateStore } from './base_transaction';
 import { convertToAssetError, TransactionError } from './errors';
 import { TransactionJSON } from './transaction_types';
 import { CreateBaseTransactionInput } from './utils';
@@ -94,24 +90,6 @@ export class VoteTransaction extends BaseTransaction {
 
 	protected assetToBytes(): Buffer {
 		return stringToBuffer(this.asset.votes.join(''));
-	}
-
-	public async prepare(store: StateStorePrepare): Promise<void> {
-		const publicKeyObjectArray = this.asset.votes.map(pkWithAction => {
-			const publicKey = pkWithAction.slice(1);
-
-			return {
-				publicKey,
-			};
-		});
-		const filterArray = [
-			{
-				address: this.senderId,
-			},
-			...publicKeyObjectArray,
-		];
-
-		await store.account.cache(filterArray);
 	}
 
 	protected verifyAgainstTransactions(

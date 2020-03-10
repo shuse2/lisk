@@ -58,19 +58,11 @@ export const applyGenesisTransactions = () => async (
 	transactions: ReadonlyArray<BaseTransaction>,
 	stateStore: StateStore,
 ) => {
-	// Avoid merging both prepare statements into one for...of loop as this slows down the call dramatically
-	for (const transaction of transactions) {
-		await transaction.prepare(stateStore);
-	}
-
-	await votesWeight.prepare(stateStore, transactions);
-
 	const transactionsResponses: TransactionResponse[] = [];
 	for (const transaction of transactions) {
 		const transactionResponse = await transaction.apply(stateStore);
 
 		await votesWeight.apply(stateStore, transaction);
-		stateStore.transaction.add(transaction.toJSON());
 
 		// We are overriding the status of transaction because it's from genesis block
 		(transactionResponse as WriteableTransactionResponse).status =
@@ -87,13 +79,6 @@ export const applyTransactions = (exceptions?: ExceptionOptions) => async (
 	transactions: ReadonlyArray<BaseTransaction>,
 	stateStore: StateStore,
 ): Promise<TransactionHandledResult> => {
-	// Avoid merging both prepare statements into one for...of loop as this slows down the call dramatically
-	for (const transaction of transactions) {
-		await transaction.prepare(stateStore);
-	}
-
-	await votesWeight.prepare(stateStore, transactions);
-
 	const transactionsResponses: TransactionResponse[] = [];
 	for (const transaction of transactions) {
 		stateStore.account.createSnapshot();
@@ -108,7 +93,6 @@ export const applyTransactions = (exceptions?: ExceptionOptions) => async (
 		}
 		if (transactionResponse.status === TransactionStatus.OK) {
 			await votesWeight.apply(stateStore, transaction, exceptions);
-			stateStore.transaction.add(transaction.toJSON());
 		}
 
 		if (transactionResponse.status !== TransactionStatus.OK) {
@@ -196,13 +180,6 @@ export const undoTransactions = (exceptions?: ExceptionOptions) => async (
 	transactions: ReadonlyArray<BaseTransaction>,
 	stateStore: StateStore,
 ): Promise<TransactionHandledResult> => {
-	// Avoid merging both prepare statements into one for...of loop as this slows down the call dramatically
-	for (const transaction of transactions) {
-		await transaction.prepare(stateStore);
-	}
-
-	await votesWeight.prepare(stateStore, transactions);
-
 	const transactionsResponses = [];
 	for (const transaction of transactions) {
 		const transactionResponse = await transaction.undo(stateStore);

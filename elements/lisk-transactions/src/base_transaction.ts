@@ -52,40 +52,17 @@ export interface TransactionResponse {
 	readonly errors: ReadonlyArray<TransactionError>;
 }
 
-export interface StateStoreGetter<T> {
-	get(key: string): Promise<T>;
-	find(func: (item: T) => boolean): T | undefined;
-}
-
-export interface StateStoreDefaultGetter<T> {
-	getOrDefault(key: string): Promise<T>;
-}
-
-export interface StateStoreSetter<T> {
-	set(key: string, value: T): void;
-}
-
-export interface StateStoreTransactionGetter<T> {
-	get(key: string): T;
-	find(func: (item: T) => boolean): T | undefined;
-}
-
 export interface StateStore {
-	readonly account: StateStoreGetter<Account> &
-		StateStoreDefaultGetter<Account> &
-		StateStoreSetter<Account>;
-	readonly transaction: StateStoreTransactionGetter<TransactionJSON>;
-}
-
-export interface StateStoreCache<T> {
-	cache(
-		filterArray: ReadonlyArray<{ readonly [key: string]: string }>,
-	): Promise<ReadonlyArray<T>>;
-}
-
-export interface StateStorePrepare {
-	readonly account: StateStoreCache<Account>;
-	readonly transaction: StateStoreCache<TransactionJSON>;
+	readonly account: {
+		get(key: string): Promise<Account>;
+		getOrDefault(key: string): Promise<Account>;
+		find(func: (item: Account) => boolean): Account | undefined;
+		set(key: string, value: Account): void;
+	};
+	readonly chain: {
+		get(key: string): Promise<string | undefined>;
+		set(key: string, value: string): void;
+	};
 }
 
 export const ENTITY_ACCOUNT = 'account';
@@ -334,14 +311,6 @@ export abstract class BaseTransaction {
 		errors.push(...assetErrors);
 
 		return createResponse(this.id, errors);
-	}
-
-	public async prepare(store: StateStorePrepare): Promise<void> {
-		await store.account.cache([
-			{
-				address: this.senderId,
-			},
-		]);
 	}
 
 	public async verifySignatures(

@@ -14,14 +14,14 @@
 import { BaseTransaction, TransactionJSON } from '@liskhq/lisk-transactions';
 
 import { Account } from '../account';
+import { StateStore } from '../state_store';
 import {
 	AccountJSON,
 	BlockHeader,
 	BlockHeaderJSON,
 	BlockInstance,
 	BlockJSON,
-	Storage as DBStorage,
-	TempBlock,
+	DB,
 } from '../types';
 
 import { BlockCache } from './cache';
@@ -29,7 +29,7 @@ import { Storage as StorageAccess } from './storage';
 import { TransactionInterfaceAdapter } from './transaction_interface_adapter';
 
 interface DAConstructor {
-	readonly dbStorage: DBStorage;
+	readonly db: DB;
 	readonly networkIdentifier: string;
 	readonly registeredTransactions: {
 		readonly [key: number]: typeof BaseTransaction;
@@ -44,13 +44,13 @@ export class DataAccess {
 	private readonly _transactionAdapter: TransactionInterfaceAdapter;
 
 	public constructor({
-		dbStorage,
+		db,
 		networkIdentifier,
 		registeredTransactions,
 		minBlockHeaderCache,
 		maxBlockHeaderCache,
 	}: DAConstructor) {
-		this._storage = new StorageAccess(dbStorage);
+		this._storage = new StorageAccess(db);
 		this._blocksCache = new BlockCache(
 			minBlockHeaderCache,
 			maxBlockHeaderCache,
@@ -280,10 +280,10 @@ export class DataAccess {
 		return isPersisted;
 	}
 
-	public async getTempBlocks(): Promise<TempBlock[]> {
+	public async getTempBlocks(): Promise<BlockInstance[]> {
 		const blocks = await this._storage.getTempBlocks();
 
-		return blocks;
+		return blocks.map(block => this.deserialize(block));
 	}
 
 	public async isTempBlockEmpty(): Promise<boolean> {
@@ -292,8 +292,8 @@ export class DataAccess {
 		return isEmpty;
 	}
 
-	public clearTempBlocks(): void {
-		this._storage.clearTempBlocks();
+	public async clearTempBlocks(): Promise<void> {
+		await this._storage.clearTempBlocks();
 	}
 	/** End: Blocks */
 
@@ -403,5 +403,31 @@ export class DataAccess {
 		transactionJSON: TransactionJSON,
 	): BaseTransaction {
 		return this._transactionAdapter.fromJSON(transactionJSON);
+	}
+
+	/*
+		Save Block
+	*/
+	public async saveBlock(
+		block: BlockInstance,
+		stateStore: StateStore,
+		removeFromTemp: boolean = false,
+	): Promise<void> {
+		const blockJSON = this.serialize(block);
+
+		return this._storage.saveBlock(blockJSON, stateStore, removeFromTemp);
+	}
+
+	/*
+		Save Block
+	*/
+	public async deleteBlock(
+		block: BlockInstance,
+		stateStore: StateStore,
+		saveToTemp: boolean = false,
+	): Promise<void> {
+		const blockJSON = this.serialize(block);
+
+		return this._storage.deleteBlock(blockJSON, stateStore, saveToTemp);
 	}
 }

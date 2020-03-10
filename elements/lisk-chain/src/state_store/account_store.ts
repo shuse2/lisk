@@ -17,17 +17,14 @@ import cloneDeep = require('lodash.clonedeep');
 import isEqual = require('lodash.isequal');
 
 import { Account } from '../account';
+import { DataAccess } from '../data_access';
+import { DB_KEY_ACCOUNT_STATE } from '../data_access/constants';
 import {
-	AccountJSON,
-	IndexableAccount,
-	StorageEntity,
-	StorageFilters,
-	StorageTransaction,
+	BatchChain,
 } from '../types';
-import { uniqBy } from '../utils';
 
 export class AccountStore {
-	private readonly _account: StorageEntity<AccountJSON>;
+	private readonly _dataAccess: DataAccess;
 	private _data: Account[];
 	private _originalData: Account[];
 	private _updatedKeys: { [key: number]: string[] } = {};
@@ -35,29 +32,14 @@ export class AccountStore {
 	private readonly _primaryKey = 'address';
 	private readonly _name = 'Account';
 
-	public constructor(accountEntity: StorageEntity<AccountJSON>) {
-		this._account = accountEntity;
+	public constructor(dataAccess: DataAccess) {
+		this._dataAccess = dataAccess;
 		this._data = [];
 		this._updatedKeys = {};
 		this._primaryKey = 'address';
 		this._name = 'Account';
 		this._originalData = [];
 		this._originalUpdatedKeys = {};
-	}
-
-	public async cache(filter: StorageFilters): Promise<ReadonlyArray<Account>> {
-		// tslint:disable-next-line no-null-keyword
-		const result = await this._account.get(filter, { limit: null });
-		const resultAccountObjects = result.map(
-			accountJSON => new Account(accountJSON),
-		);
-
-		this._data = uniqBy(
-			[...this._data, ...resultAccountObjects] as IndexableAccount[],
-			this._primaryKey,
-		);
-
-		return resultAccountObjects;
 	}
 
 	public createSnapshot(): void {
@@ -83,17 +65,12 @@ export class AccountStore {
 		}
 
 		// Account was not cached previously so we try to fetch it from db
-		// tslint:disable-next-line no-null-keyword
-		const [elementFromDB] = await this._account.get(
-			{ [this._primaryKey]: primaryValue },
-			// tslint:disable-next-line no-null-keyword
-			{ limit: null },
-		);
+		const elementFromDB = await this._dataAccess.getAccountByAddress(primaryValue);
 
 		if (elementFromDB) {
-			this._data.push(new Account(elementFromDB));
+			this._data.push(elementFromDB);
 
-			return new Account(elementFromDB);
+			return new Account(elementFromDB.toJSON());
 		}
 
 		// Account does not exist we can not continue
@@ -113,16 +90,12 @@ export class AccountStore {
 
 		// Account was not cached previously so we try to fetch it from db (example delegate account is voted)
 		// tslint:disable-next-line no-null-keyword
-		const [elementFromDB] = await this._account.get(
-			{ [this._primaryKey]: primaryValue },
-			// tslint:disable-next-line no-null-keyword
-			{ limit: null },
-		);
+		const elementFromDB = await this._dataAccess.getAccountByAddress(primaryValue);
 
 		if (elementFromDB) {
-			this._data.push(new Account(elementFromDB));
+			this._data.push(elementFromDB);
 
-			return new Account(elementFromDB);
+			return new Account(elementFromDB.toJSON());
 		}
 
 		const defaultElement: Account = Account.getDefaultAccount(primaryValue);
@@ -178,35 +151,9 @@ export class AccountStore {
 			: updatedKeys;
 	}
 
-	public async finalize(tx: StorageTransaction): Promise<void> {
-		const affectedAccounts = Object.entries(this._updatedKeys).map(
-			([index, updatedKeys]) => ({
-				updatedItem: this._data[parseInt(index, 10)].toJSON(),
-				updatedKeys,
-			}),
-		);
-
-		const updateToAccounts = affectedAccounts.map(
-			async ({ updatedItem, updatedKeys }) => {
-				const filter = { [this._primaryKey]: updatedItem[this._primaryKey] };
-				const updatedData = updatedKeys.reduce((data, key) => {
-					// tslint:disable-next-line:no-any
-					(data as any)[key] = (updatedItem as any)[key];
-
-					return data;
-					// tslint:disable-next-line readonly-keyword no-object-literal-type-assertion
-				}, {} as Partial<AccountJSON>);
-
-				return this._account.upsert(
-					filter,
-					updatedData,
-					// tslint:disable-next-line:no-null-keyword
-					null,
-					tx,
-				);
-			},
-		);
-
-		await Promise.all(updateToAccounts);
+	public finalize(batch: BatchChain): void {
+		for (const account of this._data) {
+			batch.put(`${DB_KEY_ACCOUNT_STATE}:${account.address}`, account.toJSON());
+		}
 	}
 }

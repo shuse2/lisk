@@ -12,4 +12,11 @@
  * Removal or modification of this copyright notice is prohibited.
  */
 
-export const CHAIN_STATE_KEY_BURNT_FEE = 'CHAIN_STATE_KEY_BURNT_FEE';
+export const DB_KEY_BLOCKID_BLOCK = 'blockID:block';
+export const DB_KEY_HEIGHT_BLOCKID = 'height:blockID';
+export const DB_KEY_BLOCKID_TXIDS = 'blockID:txIDs';
+export const DB_KEY_TXID_TX = 'txID:tx';
+export const DB_KEY_TEMPBLOCK_HEIGHT_BLOCK = 'tempHeight:block';
+export const DB_KEY_CHAIN_STATE = 'chain';
+export const DB_KEY_CONSENSUS_STATE = 'consensus';
+export const DB_KEY_ACCOUNT_STATE = 'account';
