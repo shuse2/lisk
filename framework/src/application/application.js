@@ -253,7 +253,10 @@ class Application {
 		this._controller = this._initController();
 		await this._controller.load(this.getModules(), this.config.modules);
 		// Initialize DB
-		const dirs = systemDirs(this.config.app.label, this.config.app.tempPath);
+		const dirs = systemDirs(
+			this.config.app.label,
+			this.config.app.dataDirectory,
+		);
 		this.systemDB = new DB(path.join(dirs.data, 'system.db'));
 		this.chainDB = new DB(path.join(dirs.data, 'blockchain.db'));
 		this.forgerDB = new DB(path.join(dirs.data, 'forger.db'));
@@ -496,7 +499,7 @@ class Application {
 			config: {
 				components: this.config.components,
 				ipc: this.config.app.ipc,
-				tempPath: this.config.app.tempPath,
+				dataDirectory: this.config.app.dataDirectory,
 			},
 			logger: this.logger,
 			channel: this.channel,

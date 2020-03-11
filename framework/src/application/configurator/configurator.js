@@ -13,7 +13,6 @@
  */
 
 const _ = require('lodash');
-const yargs = require('yargs');
 const { applicationConfigSchema } = require('../schema');
 
 const { parseEnvArgAndValidate } = require('../validator');
@@ -47,24 +46,7 @@ class Configurator {
 		this.registerSchema(moduleKlass.defaults, `modules.${moduleKlass.alias}`);
 	}
 
-	getConfig(overrideValues = {}, options = { failOnInvalidArg: true }) {
-		if (options.failOnInvalidArg) {
-			const diff = _.difference(
-				Object.keys(yargs.argv),
-				[...this.listOfArgs],
-				['_', '$0'],
-			);
-
-			if (diff.length) {
-				console.error(
-					'Invalid command line arguments specified: ',
-					diff.join(),
-				);
-				console.info(this.helpBanner());
-				process.exit(1);
-			}
-		}
-
+	getConfig(overrideValues = {}) {
 		return parseEnvArgAndValidate(
 			this.configSchema,
 			_.mergeWith(

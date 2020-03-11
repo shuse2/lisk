@@ -1,5 +1,6 @@
 /*
- * Copyright © 2019 Lisk Foundation
+ * LiskHQ/lisk-sdk
+ * Copyright © 2020 Lisk Foundation
  *
  * See the LICENSE file at the top-level directory of this distribution
  * for licensing information.
@@ -10,11 +11,7 @@
  * LICENSE file.
  *
  * Removal or modification of this copyright notice is prohibited.
+ *
  */
 
-'use strict';
-
-const env = require('./env');
-const arg = require('./arg');
-
-module.exports = { env, arg };
+export default {};

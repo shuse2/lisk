@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Lisk Foundation
+ * Copyright © 2020 Lisk Foundation
  *
  * See the LICENSE file at the top-level directory of this distribution
  * for licensing information.
@@ -11,14 +11,12 @@
  *
  * Removal or modification of this copyright notice is prohibited.
  */
+import { Application } from 'lisk-sdk';
 
-'use strict';
+export const createApp = (genesisBlock: JSON, config: JSON): Application => {
+	const app = new Application(genesisBlock, config);
 
-const systemDirs = (appLabel, dataDirectory) => ({
-	temp: `${dataDirectory}/${appLabel}/temp`,
-	data: `${dataDirectory}/${appLabel}/data`,
-	sockets: `${dataDirectory}/${appLabel}/temp/sockets`,
-	pids: `${dataDirectory}/${appLabel}/temp/pids`,
-});
+	// New transactions, default custom modules registration should happen here
 
-module.exports = { systemDirs };
+	return app;
+};

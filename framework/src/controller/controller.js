@@ -34,7 +34,7 @@ class Controller {
 		this.channel = channel;
 		this.logger.info('Initializing controller');
 
-		const dirs = systemDirs(this.appLabel, config.tempPath);
+		const dirs = systemDirs(this.appLabel, config.dataDirectory);
 		this.config = {
 			...config,
 			dirs,
