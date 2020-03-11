@@ -68,6 +68,10 @@ export class DB {
 		}
 	}
 
+	public async clear(): Promise<void> {
+		return this._db.clear();
+	}
+
 	// tslint:disable-next-line no-any
 	public async put(key: string, val: any): Promise<void> {
 		logger('put', { key });

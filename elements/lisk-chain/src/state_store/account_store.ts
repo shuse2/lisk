@@ -89,15 +89,19 @@ export class AccountStore {
 		}
 
 		// Account was not cached previously so we try to fetch it from db (example delegate account is voted)
-		// tslint:disable-next-line no-null-keyword
-		const elementFromDB = await this._dataAccess.getAccountByAddress(
-			primaryValue,
-		);
+		try {
+			const elementFromDB = await this._dataAccess.getAccountByAddress(
+				primaryValue,
+			);
+			if (elementFromDB) {
+				this._data.push(elementFromDB);
 
-		if (elementFromDB) {
-			this._data.push(elementFromDB);
-
-			return new Account(elementFromDB.toJSON());
+				return new Account(elementFromDB.toJSON());
+			}
+		} catch (error) {
+			if (!error.notFound) {
+				throw error;
+			}
 		}
 
 		const defaultElement: Account = Account.getDefaultAccount(primaryValue);

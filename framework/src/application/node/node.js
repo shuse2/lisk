@@ -47,11 +47,19 @@ const { BlockProcessorV2 } = require('./block_processor_v2.js');
 const forgeInterval = 1000;
 
 module.exports = class Node {
-	constructor({ channel, options, logger, storage, applicationState }) {
+	constructor({
+		channel,
+		options,
+		logger,
+		chainDB,
+		forgerDB,
+		applicationState,
+	}) {
 		this.channel = channel;
 		this.options = options;
 		this.logger = logger;
-		this.storage = storage;
+		this.chainDB = chainDB;
+		this.forgerDB = forgerDB;
 		this.applicationState = applicationState;
 
 		this.components = null;
@@ -98,13 +106,13 @@ module.exports = class Node {
 
 			// Prepare dependency
 			const processorDependencies = {
+				db: this.forgerDB,
 				chainModule: this.chain,
 				bftModule: this.bft,
 				dposModule: this.dpos,
 				logger: this.logger,
 				constants: this.options.constants,
 				exceptions: this.options.exceptions,
-				storage: this.storage,
 			};
 
 			// TODO: Move this to core https://github.com/LiskHQ/lisk-sdk/issues/4140
@@ -363,7 +371,7 @@ module.exports = class Node {
 
 		this.chain = new Chain({
 			logger: this.logger,
-			storage: this.storage,
+			db: this.chainDB,
 			sequence: this.sequence,
 			genesisBlock: this.options.genesisBlock,
 			registeredTransactions: this.options.registeredTransactions,
@@ -456,7 +464,6 @@ module.exports = class Node {
 		this.processor = new Processor({
 			channel: this.channel,
 			logger: this.logger,
-			storage: this.storage,
 			chainModule: this.chain,
 		});
 
@@ -466,7 +473,6 @@ module.exports = class Node {
 		this.modules.transactionPool = this.transactionPool;
 
 		const blockSyncMechanism = new BlockSynchronizationMechanism({
-			storage: this.storage,
 			logger: this.logger,
 			bft: this.bft,
 			rounds: this.dpos.rounds,
@@ -510,7 +516,7 @@ module.exports = class Node {
 		this.forger = new Forger({
 			channel: this.channel,
 			logger: this.logger,
-			storage: this.storage,
+			db: this.forgerDB,
 			dposModule: this.dpos,
 			transactionPoolModule: this.transactionPool,
 			processorModule: this.processor,

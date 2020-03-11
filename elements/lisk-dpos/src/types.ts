@@ -22,6 +22,10 @@ export interface StateStore {
 		readonly get: (key: string) => Promise<string | undefined>;
 		readonly set: (key: string, value: string) => void;
 	};
+	readonly chain: {
+		readonly get: (key: string) => Promise<string | undefined>;
+		readonly set: (key: string, value: string) => void;
+	};
 }
 
 export interface BlockHeader {

@@ -15,6 +15,8 @@
 'use strict';
 
 const assert = require('assert');
+const path = require('path');
+const { DB } = require('@liskhq/lisk-db');
 const {
 	TransferTransaction,
 	DelegateTransaction,
@@ -26,6 +28,7 @@ const { getNetworkIdentifier } = require('@liskhq/lisk-cryptography');
 const { validator: liskValidator } = require('@liskhq/lisk-validator');
 const _ = require('lodash');
 const Controller = require('../controller/controller');
+const { systemDirs } = require('./system_dirs');
 const version = require('../version');
 const validator = require('./validator');
 const configurator = require('./default_configurator');
@@ -34,29 +37,11 @@ const { genesisBlockSchema, constantsSchema } = require('./schema');
 const ApplicationState = require('./application_state');
 
 const { createLoggerComponent } = require('../components/logger');
-const { createStorageComponent } = require('../components/storage');
-const {
-	MigrationEntity,
-	NetworkInfoEntity,
-	AccountEntity,
-	BlockEntity,
-	ChainStateEntity,
-	ConsensusStateEntity,
-	ForgerInfoEntity,
-	TempBlockEntity,
-	TransactionEntity,
-} = require('../application/storage/entities');
-const {
-	networkMigrations,
-	nodeMigrations,
-} = require('../application/storage/migrations');
 
 const { Network } = require('./network');
 const { Node } = require('./node');
 
 const { InMemoryChannel } = require('../controller/channels');
-
-const HttpAPIModule = require('../modules/http_api');
 
 const registerProcessHooks = app => {
 	process.title = `${app.config.app.label}(${app.config.app.version})`;
@@ -145,17 +130,11 @@ class Application {
 		this._controller = null;
 
 		this.logger = this._initLogger();
-		this.storage = this._initStorage();
 
 		this.registerTransaction(TransferTransaction);
 		this.registerTransaction(DelegateTransaction);
 		this.registerTransaction(VoteTransaction);
 		this.registerTransaction(MultisignatureTransaction);
-
-		this.registerModule(HttpAPIModule);
-		this.overrideModuleOptions(HttpAPIModule.alias, {
-			loadAsChildProcess: true,
-		});
 	}
 
 	registerModule(moduleKlass, options = {}, alias = undefined) {
@@ -246,10 +225,6 @@ class Application {
 		return this._modules;
 	}
 
-	getMigrations() {
-		return this._migrations;
-	}
-
 	async run() {
 		this.logger.info(
 			'If you experience any type of error, please open an issue on Lisk GitHub: https://github.com/LiskHQ/lisk-sdk/issues',
@@ -276,24 +251,15 @@ class Application {
 		this.applicationState.channel = this.channel;
 
 		this._controller = this._initController();
+		await this._controller.load(this.getModules(), this.config.modules);
+		// Initialize DB
+		const dirs = systemDirs(this.config.app.label, this.config.app.tempPath);
+		this.systemDB = new DB(path.join(dirs.data, 'system.db'));
+		this.chainDB = new DB(path.join(dirs.data, 'blockchain.db'));
+		this.forgerDB = new DB(path.join(dirs.data, 'forger.db'));
+
 		this._network = this._initNetwork();
 		this._node = this._initNode();
-
-		// Load system components
-		await this.storage.bootstrap();
-		await this.storage.entities.Migration.defineSchema();
-
-		// Have to keep it consistent until update migration namespace in database
-		await this.storage.entities.Migration.applyAll({
-			node: nodeMigrations(),
-			network: networkMigrations(),
-		});
-
-		await this._controller.load(
-			this.getModules(),
-			this.config.modules,
-			this.getMigrations(),
-		);
 
 		await this._network.bootstrap();
 		await this._node.bootstrap();
@@ -311,7 +277,6 @@ class Application {
 		// TODO: Fix the cause of circular exception
 		// await this._network.stop();
 		// await this._node.cleanup();
-		await this.storage.cleanup();
 
 		process.exit(errorCode);
 	}
@@ -366,43 +331,6 @@ class Application {
 			...this.config.components.logger,
 			module: 'lisk:app',
 		});
-	}
-
-	_initStorage() {
-		const storageConfig = this.config.components.storage;
-		const loggerConfig = this.config.components.logger;
-		const dbLogger =
-			storageConfig.logFileName &&
-			storageConfig.logFileName === loggerConfig.logFileName
-				? this.logger
-				: createLoggerComponent({
-						...loggerConfig,
-						logFileName: storageConfig.logFileName,
-						module: 'lisk:app:database',
-				  });
-
-		const storage = createStorageComponent(
-			this.config.components.storage,
-			dbLogger,
-		);
-
-		storage.registerEntity('Migration', MigrationEntity);
-		storage.registerEntity('NetworkInfo', NetworkInfoEntity);
-		storage.registerEntity('Account', AccountEntity, { replaceExisting: true });
-		storage.registerEntity('Block', BlockEntity, { replaceExisting: true });
-		storage.registerEntity('Transaction', TransactionEntity, {
-			replaceExisting: true,
-		});
-		storage.registerEntity('ChainState', ChainStateEntity);
-		storage.registerEntity('ConsensusState', ConsensusStateEntity);
-		storage.registerEntity('ForgerInfo', ForgerInfoEntity);
-		storage.registerEntity('TempBlock', TempBlockEntity);
-
-		storage.entities.Account.extendDefaultOptions({
-			limit: this.constants.activeDelegates,
-		});
-
-		return storage;
 	}
 
 	_initApplicationState() {
@@ -571,7 +499,6 @@ class Application {
 				tempPath: this.config.app.tempPath,
 			},
 			logger: this.logger,
-			storage: this.storage,
 			channel: this.channel,
 		});
 	}
@@ -579,7 +506,7 @@ class Application {
 	_initNetwork() {
 		const network = new Network({
 			options: this.config.app.network,
-			storage: this.storage,
+			db: this.systemDB,
 			logger: this.logger,
 			channel: this.channel,
 		});
@@ -596,7 +523,8 @@ class Application {
 				registeredTransactions: this.getTransactions(),
 			},
 			logger: this.logger,
-			storage: this.storage,
+			chainDB: this.chainDB,
+			forgerDB: this.forgerDB,
 			applicationState: this.applicationState,
 		});
 

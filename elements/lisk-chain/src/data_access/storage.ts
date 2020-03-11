@@ -38,6 +38,8 @@ const numberToHexString = (num: number): string => {
 	return buf.toString('hex');
 };
 
+const getEndPrefix = (prefix: string): string => `${prefix}\xFF`;
+
 export class Storage {
 	private readonly _db: DB;
 
@@ -69,7 +71,7 @@ export class Storage {
 
 	public async getBlockHeaderByHeight(height: number): Promise<BlockJSON> {
 		const blockID = await this._db.get(
-			`${DB_KEY_HEIGHT_BLOCKID}:${height.toString()}`,
+			`${DB_KEY_HEIGHT_BLOCKID}:${numberToHexString(height)}`,
 		);
 
 		return this.getBlockHeaderByID(blockID);
@@ -116,8 +118,10 @@ export class Storage {
 	}
 
 	public async getLastBlockHeader(): Promise<BlockJSON> {
+		const key = `${DB_KEY_HEIGHT_BLOCKID}:`;
 		const stream = this._db.createReadStream({
-			gt: `${DB_KEY_HEIGHT_BLOCKID}:`,
+			gte: key,
+			lte: getEndPrefix(key),
 			reverse: true,
 			limit: 1,
 		});
@@ -242,7 +246,7 @@ export class Storage {
 		const key = `${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:`;
 		const stream = this._db.createReadStream({
 			gte: key,
-			lte: String.fromCharCode(key.charCodeAt(0) + 1),
+			lte: getEndPrefix(key),
 			reverse: true,
 		});
 		const tempBlocks = await new Promise<BlockJSON[]>((resolve, reject) => {
@@ -266,7 +270,7 @@ export class Storage {
 		const key = `${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:`;
 		const stream = this._db.createReadStream({
 			gte: key,
-			lte: String.fromCharCode(key.charCodeAt(0) + 1),
+			lte: getEndPrefix(key),
 			limit: 1,
 		});
 		const tempBlocks = await new Promise<BlockJSON[]>((resolve, reject) => {
@@ -405,7 +409,7 @@ export class Storage {
 		const key = `${DB_KEY_ACCOUNT_STATE}:`;
 		const stream = this._db.createReadStream({
 			gte: key,
-			lte: String.fromCharCode(key.charCodeAt(0) + 1),
+			lte: getEndPrefix(key),
 		});
 		const accounts = await new Promise<AccountJSON[]>((resolve, reject) => {
 			const accountJSONs: AccountJSON[] = [];
@@ -451,7 +455,7 @@ export class Storage {
 			const accountKey = `${DB_KEY_ACCOUNT_STATE}:`;
 			const stream = this._db.createReadStream({
 				gte: accountKey,
-				lte: String.fromCharCode(accountKey.charCodeAt(0) + 1),
+				lte: getEndPrefix(accountKey),
 				limit: batchSize,
 			});
 			const accounts = await new Promise<AccountJSON[]>((resolve, reject) => {
@@ -480,7 +484,7 @@ export class Storage {
 			const key = `${DB_KEY_CHAIN_STATE}:`;
 			const stream = this._db.createReadStream({
 				gte: key,
-				lte: String.fromCharCode(key.charCodeAt(0) + 1),
+				lte: getEndPrefix(key),
 				limit: batchSize,
 			});
 			const chainStateKeys = await new Promise<string[]>((resolve, reject) => {
@@ -548,7 +552,10 @@ export class Storage {
 		const batch = this._db.batch();
 		const { transactions, ...header } = blockJSON;
 		batch.put(`${DB_KEY_BLOCKID_BLOCK}:${header.id}`, header);
-		batch.put(`${DB_KEY_HEIGHT_BLOCKID}:${header.height}`, header.id);
+		batch.put(
+			`${DB_KEY_HEIGHT_BLOCKID}:${numberToHexString(header.height)}`,
+			header.id,
+		);
 		if (transactions.length > 0) {
 			const ids = [];
 			for (const tx of transactions) {
@@ -558,7 +565,11 @@ export class Storage {
 			batch.put(`${DB_KEY_BLOCKID_TXIDS}:${header.id}`, ids);
 		}
 		if (removeFromTemp) {
-			batch.del(`${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:${blockJSON.height}`);
+			batch.del(
+				`${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:${numberToHexString(
+					blockJSON.height,
+				)}`,
+			);
 		}
 		stateStore.finalize(batch);
 		await batch.write();
@@ -572,7 +583,7 @@ export class Storage {
 		const batch = this._db.batch();
 		const { transactions, ...header } = blockJSON;
 		batch.del(`${DB_KEY_BLOCKID_BLOCK}:${header.id}`);
-		batch.del(`${DB_KEY_HEIGHT_BLOCKID}:${header.height}`);
+		batch.del(`${DB_KEY_HEIGHT_BLOCKID}:${numberToHexString(header.height)}`);
 		if (transactions.length > 0) {
 			for (const tx of transactions) {
 				batch.del(`${DB_KEY_TXID_TX}:${tx.id}`);
@@ -581,7 +592,9 @@ export class Storage {
 		}
 		if (saveToTemp) {
 			batch.put(
-				`${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:${blockJSON.height}`,
+				`${DB_KEY_TEMPBLOCK_HEIGHT_BLOCK}:${numberToHexString(
+					blockJSON.height,
+				)}`,
 				blockJSON,
 			);
 		}

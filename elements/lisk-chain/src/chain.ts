@@ -486,6 +486,8 @@ export class Chain {
 				removeFromTempTable,
 			);
 		}
+		this.dataAccess.addBlockHeader(blockInstance);
+		this._lastBlock = blockInstance;
 		this.events.emit(EVENT_NEW_BLOCK, {
 			block: this.serialize(blockInstance),
 			accounts,

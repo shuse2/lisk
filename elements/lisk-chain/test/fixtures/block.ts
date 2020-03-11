@@ -33,6 +33,7 @@ export const Block = stampit.compose({
 		totalAmount: '10000000000000000',
 		totalFee: '0',
 		version: 0,
+		transactions: [],
 	},
 	init({
 		id,
@@ -42,6 +43,7 @@ export const Block = stampit.compose({
 		version,
 		maxHeightPreviouslyForged,
 		maxHeightPrevoted,
+		transactions,
 	}: {
 		id: string;
 		previousBlockId: string;
@@ -50,6 +52,7 @@ export const Block = stampit.compose({
 		version: number;
 		maxHeightPreviouslyForged: number;
 		maxHeightPrevoted: number;
+		transactions: any[];
 	}) {
 		// Must to provide
 		this.previousBlockId = previousBlockId;
@@ -68,6 +71,7 @@ export const Block = stampit.compose({
 			.number({ min: 1000, max: 10000 })
 			.toString();
 		this.version = version || 0;
+		this.transactions = transactions || [];
 
 		if (this.version === 2) {
 			this.maxHeightPreviouslyForged = maxHeightPreviouslyForged || 0;

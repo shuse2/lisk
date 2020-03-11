@@ -26,7 +26,7 @@ const {
 } = require('@liskhq/lisk-cryptography');
 const { BaseBlockProcessor } = require('./processor');
 
-const FORGER_INFO_KEY_PREVIOUSLY_FORGED = 'previouslyForged';
+const FORGER_INFO_KEY_PREVIOUSLY_FORGED = 'forger:previouslyForged';
 
 const SIZE_INT32 = 4;
 const SIZE_INT64 = 8;
@@ -149,7 +149,7 @@ class BlockProcessorV2 extends BaseBlockProcessor {
 		chainModule,
 		bftModule,
 		dposModule,
-		storage,
+		db,
 		logger,
 		constants,
 		exceptions,
@@ -159,7 +159,7 @@ class BlockProcessorV2 extends BaseBlockProcessor {
 		this.bftModule = bftModule;
 		this.dposModule = dposModule;
 		this.logger = logger;
-		this.storage = storage;
+		this.db = db;
 		this.constants = constants;
 		this.exceptions = exceptions;
 
@@ -346,10 +346,17 @@ class BlockProcessorV2 extends BaseBlockProcessor {
 	}
 
 	async _getPreviouslyForgedMap() {
-		const previouslyForgedStr = await this.storage.entities.ForgerInfo.getKey(
-			FORGER_INFO_KEY_PREVIOUSLY_FORGED,
-		);
-		return previouslyForgedStr ? JSON.parse(previouslyForgedStr) : {};
+		try {
+			const previouslyForgedStr = await this.db.get(
+				FORGER_INFO_KEY_PREVIOUSLY_FORGED,
+			);
+			return JSON.parse(previouslyForgedStr);
+		} catch (error) {
+			if (error.notFound) {
+				return {};
+			}
+			throw error;
+		}
 	}
 
 	/**
@@ -379,10 +386,7 @@ class BlockProcessorV2 extends BaseBlockProcessor {
 			},
 		};
 		const previouslyForgedStr = JSON.stringify(updatedPreviouslyForged);
-		await this.storage.entities.ForgerInfo.setKey(
-			FORGER_INFO_KEY_PREVIOUSLY_FORGED,
-			previouslyForgedStr,
-		);
+		await this.db.put(FORGER_INFO_KEY_PREVIOUSLY_FORGED, previouslyForgedStr);
 	}
 }
 
