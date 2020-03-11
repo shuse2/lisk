@@ -40,7 +40,7 @@ interface DelegatesListConstructor {
 export const getForgersList = async (
 	stateStore: StateStore,
 ): Promise<ForgersList> => {
-	const forgersListStr = await stateStore.chainState.get(
+	const forgersListStr = await stateStore.chain.get(
 		CHAIN_STATE_FORGERS_LIST_KEY,
 	);
 	if (!forgersListStr) {
@@ -55,7 +55,7 @@ const _setForgersList = (
 	forgersList: ForgersList,
 ): void => {
 	const forgersListStr = JSON.stringify(forgersList);
-	stateStore.chainState.set(CHAIN_STATE_FORGERS_LIST_KEY, forgersListStr);
+	stateStore.chain.set(CHAIN_STATE_FORGERS_LIST_KEY, forgersListStr);
 };
 
 export const deleteDelegateListUntilRound = async (

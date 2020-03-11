@@ -20,15 +20,11 @@ export const transactionInterface = {
 		'verifyAgainstOtherTransactions',
 		'apply',
 		'undo',
-		'prepare',
 		'isExpired',
 		'verifySignatures',
 	],
 	properties: {
 		toJSON: {
-			typeof: 'function',
-		},
-		isReady: {
 			typeof: 'function',
 		},
 		getBytes: {
@@ -44,9 +40,6 @@ export const transactionInterface = {
 			typeof: 'function',
 		},
 		undo: {
-			typeof: 'function',
-		},
-		prepare: {
 			typeof: 'function',
 		},
 		isExpired: {

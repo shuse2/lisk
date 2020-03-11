@@ -15,9 +15,10 @@
 'use strict';
 
 const systemDirs = (appLabel, tempPath) => ({
-	temp: `${tempPath}/${appLabel}/`,
-	sockets: `${tempPath}/${appLabel}/sockets`,
-	pids: `${tempPath}/${appLabel}/pids`,
+	temp: `${tempPath}/${appLabel}/temp`,
+	data: `${tempPath}/${appLabel}/data`,
+	sockets: `${tempPath}/${appLabel}/temp/sockets`,
+	pids: `${tempPath}/${appLabel}/temp/pids`,
 });
 
-module.exports = systemDirs;
+module.exports = { systemDirs };

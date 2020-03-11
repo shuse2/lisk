@@ -18,7 +18,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const childProcess = require('child_process');
 const psList = require('ps-list');
-const systemDirs = require('../application/system_dirs');
+const { systemDirs } = require('../application/system_dirs');
 const { InMemoryChannel } = require('./channels');
 const Bus = require('./bus');
 const { DuplicateAppInstanceError } = require('../errors');
@@ -28,9 +28,8 @@ const isPidRunning = async pid =>
 	psList().then(list => list.some(x => x.pid === pid));
 
 class Controller {
-	constructor({ appLabel, config, logger, storage, channel }) {
+	constructor({ appLabel, config, logger, channel }) {
 		this.logger = logger;
-		this.storage = storage;
 		this.appLabel = appLabel;
 		this.channel = channel;
 		this.logger.info('Initializing controller');
@@ -52,12 +51,11 @@ class Controller {
 		this.bus = null;
 	}
 
-	async load(modules, moduleOptions, migrations = {}) {
+	async load(modules, moduleOptions) {
 		this.logger.info('Loading controller');
 		await this._setupDirectories();
 		await this._validatePidFile();
 		await this._setupBus();
-		await this._loadMigrations({ ...migrations });
 		await this._loadModules(modules, moduleOptions);
 
 		this.logger.debug(this.bus.getEvents(), 'Bus listening to events');
@@ -67,6 +65,7 @@ class Controller {
 	// eslint-disable-next-line class-methods-use-this
 	async _setupDirectories() {
 		// Make sure all directories exists
+		await fs.ensureDir(this.config.dirs.data);
 		await fs.ensureDir(this.config.dirs.temp);
 		await fs.ensureDir(this.config.dirs.sockets);
 		await fs.ensureDir(this.config.dirs.pids);
@@ -121,10 +120,6 @@ class Controller {
 				);
 			});
 		}
-	}
-
-	async _loadMigrations(migrationsObj) {
-		return this.storage.entities.Migration.applyAll(migrationsObj);
 	}
 
 	async _loadModules(modules, moduleOptions) {

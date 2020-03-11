@@ -114,7 +114,7 @@ export class BFT extends EventEmitter {
 		await this.finalityManager.addBlockHeader(block, stateStore);
 		const { finalizedHeight } = this.finalityManager;
 
-		stateStore.chainState.set(
+		stateStore.chain.set(
 			CHAIN_STATE_FINALIZED_HEIGHT_KEY,
 			String(finalizedHeight),
 		);
@@ -181,7 +181,7 @@ export class BFT extends EventEmitter {
 		stateStore: StateStore,
 	): Promise<FinalityManager> {
 		// Check what finalized height was stored last time
-		const storedFinalizedHeight = await stateStore.chainState.get(
+		const storedFinalizedHeight = await stateStore.chain.get(
 			CHAIN_STATE_FINALIZED_HEIGHT_KEY,
 		);
 		const finalizedHeightStored = storedFinalizedHeight

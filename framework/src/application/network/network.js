@@ -40,22 +40,35 @@ const { lookupPeersIPs } = require('./utils');
 
 const hasNamespaceReg = /:/;
 
-const NETWORK_INFO_KEY_NODE_SECRET = 'node_secret';
-const NETWORK_INFO_KEY_TRIED_PEERS = 'tried_peers_list';
+const NETWORK_INFO_KEY_NODE_SECRET = 'network:node_secret';
+const NETWORK_INFO_KEY_TRIED_PEERS = 'network:tried_peers_list';
 const DEFAULT_PEER_SAVE_INTERVAL = 10 * 60 * 1000; // 10min in ms
 
+const safeDBget = async (db, key) => {
+	try {
+		const val = await db.get(key);
+		return val;
+	} catch (error) {
+		if (error.notFound) {
+			return undefined;
+		}
+		throw error;
+	}
+};
+
 module.exports = class Network {
-	constructor({ options, channel, logger, storage }) {
+	constructor({ options, channel, logger, db }) {
 		this.options = options;
 		this.channel = channel;
 		this.logger = logger;
-		this.storage = storage;
+		this.db = db;
 		this.secret = null;
 	}
 
 	async bootstrap() {
 		// Load peers from the database that were tried or connected the last time node was running
-		const previousPeersStr = await this.storage.entities.NetworkInfo.getKey(
+		const previousPeersStr = await safeDBget(
+			this.db,
 			NETWORK_INFO_KEY_TRIED_PEERS,
 		);
 		let previousPeers = [];
@@ -66,15 +79,11 @@ module.exports = class Network {
 		}
 
 		// Get previous secret if exists
-		const secret = await this.storage.entities.NetworkInfo.getKey(
-			NETWORK_INFO_KEY_NODE_SECRET,
-		);
+		const secret = await safeDBget(this.db, NETWORK_INFO_KEY_NODE_SECRET);
+
 		if (!secret) {
 			this.secret = getRandomBytes(4).readUInt32BE(0);
-			await this.storage.entities.NetworkInfo.setKey(
-				NETWORK_INFO_KEY_NODE_SECRET,
-				this.secret,
-			);
+			await this.db.put(NETWORK_INFO_KEY_NODE_SECRET, this.secret);
 		} else {
 			this.secret = Number(secret);
 		}
@@ -288,7 +297,7 @@ module.exports = class Network {
 		setInterval(async () => {
 			const triedPeers = this.p2p.getTriedPeers();
 			if (triedPeers.length) {
-				await this.storage.entities.NetworkInfo.setKey(
+				await this.db.put(
 					NETWORK_INFO_KEY_TRIED_PEERS,
 					JSON.stringify(triedPeers),
 				);

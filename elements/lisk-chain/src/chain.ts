@@ -61,10 +61,7 @@ import {
 	validateReward,
 	validateSignature,
 } from './validate';
-import {
-	BlocksVerify,
-	verifyPreviousBlockId,
-} from './verify';
+import { BlocksVerify, verifyPreviousBlockId } from './verify';
 
 interface ChainConstructor {
 	// Components
@@ -400,7 +397,9 @@ export class Chain {
 		{ skipExistingCheck }: { readonly skipExistingCheck: boolean },
 	): Promise<void> {
 		if (!skipExistingCheck) {
-			const blockExist = await this.dataAccess.isBlockPersisted(blockInstance.id);
+			const blockExist = await this.dataAccess.isBlockPersisted(
+				blockInstance.id,
+			);
 			if (blockExist) {
 				throw new Error(`Block with ${blockInstance.id} already exists`);
 			}
@@ -454,8 +453,14 @@ export class Chain {
 			stateStore.finalize(batch);
 			await batch.write();
 		} else {
-			await this.dataAccess.saveBlock(blockInstance, stateStore, removeFromTempTable);
+			await this.dataAccess.saveBlock(
+				blockInstance,
+				stateStore,
+				removeFromTempTable,
+			);
 		}
+		this.dataAccess.addBlockHeader(blockInstance);
+		this._lastBlock = blockInstance;
 		this.events.emit(EVENT_NEW_BLOCK, {
 			block: this.serialize(blockInstance),
 			accounts,
@@ -478,7 +483,9 @@ export class Chain {
 		if (block.height === 1) {
 			throw new Error('Cannot delete genesis block');
 		}
-		const secondLastBlock = await this.dataAccess.getBlockByID(block.previousBlockId as string);
+		const secondLastBlock = await this.dataAccess.getBlockByID(
+			block.previousBlockId as string,
+		);
 		if (!secondLastBlock) {
 			throw new Error('PreviousBlock is null');
 		}

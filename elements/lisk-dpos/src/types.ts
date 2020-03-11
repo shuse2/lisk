@@ -18,7 +18,7 @@ export interface StateStore {
 		readonly getUpdated: () => Account[];
 		readonly set: (primaryValue: string, account: Account) => void;
 	};
-	readonly chainState: {
+	readonly chain: {
 		readonly get: (key: string) => Promise<string | undefined>;
 		readonly set: (key: string, value: string) => void;
 	};
