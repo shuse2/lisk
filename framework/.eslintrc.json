@@ -18,6 +18,7 @@
 		"no-throw-literal": ["warn"],
 		"@typescript-eslint/no-var-requires": ["warn"],
 		"@typescript-eslint/camelcase": ["warn"],
-		"@typescript-eslint/no-this-alias": ["warn"]
+		"@typescript-eslint/no-this-alias": ["warn"],
+		"import/prefer-default-export": "off"
 	}
 }
