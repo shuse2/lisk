@@ -54,13 +54,6 @@ export const applyGenesisTransactions = () => async (
 	transactions: ReadonlyArray<BaseTransaction>,
 	stateStore: StateStore,
 ) => {
-	// Avoid merging both prepare statements into one for...of loop as this slows down the call dramatically
-	for (const transaction of transactions) {
-		await transaction.prepare(stateStore);
-	}
-
-	await votesWeight.prepare(stateStore, transactions);
-
 	const transactionsResponses: TransactionResponse[] = [];
 	for (const transaction of transactions) {
 		const transactionResponse = await transaction.apply(stateStore);
@@ -80,13 +73,6 @@ export const applyTransactions = (exceptions?: ExceptionOptions) => async (
 	transactions: ReadonlyArray<BaseTransaction>,
 	stateStore: StateStore,
 ): Promise<ReadonlyArray<TransactionResponse>> => {
-	// Avoid merging both prepare statements into one for...of loop as this slows down the call dramatically
-	for (const transaction of transactions) {
-		await transaction.prepare(stateStore);
-	}
-
-	await votesWeight.prepare(stateStore, transactions);
-
 	const transactionsResponses: TransactionResponse[] = [];
 	for (const transaction of transactions) {
 		stateStore.account.createSnapshot();
@@ -181,13 +167,6 @@ export const undoTransactions = (exceptions?: ExceptionOptions) => async (
 	transactions: ReadonlyArray<BaseTransaction>,
 	stateStore: StateStore,
 ): Promise<ReadonlyArray<TransactionResponse>> => {
-	// Avoid merging both prepare statements into one for...of loop as this slows down the call dramatically
-	for (const transaction of transactions) {
-		await transaction.prepare(stateStore);
-	}
-
-	await votesWeight.prepare(stateStore, transactions);
-
 	const transactionsResponses = [];
 	for (const transaction of transactions) {
 		const transactionResponse = await transaction.undo(stateStore);

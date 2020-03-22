@@ -1,4 +1,3 @@
-import { AbstractBatch } from 'abstract-leveldown';
 import { debug } from 'debug';
 import EncodingDown from 'encoding-down';
 // tslint:disable-next-line match-default-export-name
@@ -7,13 +6,15 @@ import RocksDB from 'rocksdb';
 
 const logger = debug('db');
 
-const delimitor = ':';
-export interface BatchCommand {
-	readonly type: 'put' | 'del';
-	readonly bucket: string;
-	readonly key: string | number;
+// tslint:disable-next-line no-any
+export interface BatchChain<K = any, V = any> {
 	// tslint:disable-next-line no-any
-	readonly value?: any;
+	put(key: K, value: V): this;
+	del(key: K): this;
+	clear(): this;
+	write(): Promise<this>;
+	// tslint:disable-next-line no-mixed-interface
+	readonly length: number;
 }
 
 export interface ReadStreamOption {
@@ -44,19 +45,19 @@ export class DB {
 	}
 
 	// tslint:disable-next-line no-any
-	public async get(bucket: string, key: string | number): Promise<any> {
-		const fullKey = `${bucket}${delimitor}${key}`;
-		logger('get', { key: fullKey });
+	public async get(rawKey: string | number): Promise<any> {
+		const key = typeof rawKey === 'number' ? rawKey.toString() : rawKey;
+		logger('get', { key });
 
-		return this._db.get(fullKey);
+		return this._db.get(key);
 	}
 
 	// tslint:disable-next-line no-any
-	public async exists(bucket: string, key: string | number): Promise<boolean> {
-		const fullKey = `${bucket}${delimitor}${key}`;
+	public async exists(rawKey: string | number): Promise<boolean> {
+		const key = typeof rawKey === 'number' ? rawKey.toString() : rawKey;
 		try {
-			logger('exists', { key: fullKey });
-			await this._db.get(fullKey);
+			logger('exists', { key });
+			await this._db.get(key);
 
 			return true;
 		} catch (error) {
@@ -68,18 +69,16 @@ export class DB {
 	}
 
 	// tslint:disable-next-line no-any
-	public async put(bucket: string, key: string, val: any): Promise<void> {
-		const fullKey = `${bucket}${delimitor}${key}`;
-		logger('put', { key: fullKey });
+	public async put(key: string, val: any): Promise<void> {
+		logger('put', { key });
 
-		return this._db.put(fullKey, val);
+		return this._db.put(key, val);
 	}
 
-	public async del(bucket: string, key: string): Promise<void> {
-		const fullKey = `${bucket}${delimitor}${key}`;
-		logger('del', { key: fullKey });
+	public async del(key: string): Promise<void> {
+		logger('del', { key });
 
-		return this._db.del(fullKey);
+		return this._db.del(key);
 	}
 
 	public createReadStream(options?: ReadStreamOption): NodeJS.ReadableStream {
@@ -88,15 +87,7 @@ export class DB {
 		return this._db.createReadStream(options);
 	}
 
-	public async batch(tasks: ReadonlyArray<BatchCommand>): Promise<void> {
-		const execTasks = tasks.map(t => ({
-			type: t.type,
-			key: `${t.bucket}${delimitor}${
-				typeof t.key === 'string' ? t.key : t.key.toString()
-			}`,
-			value: t.value,
-		}));
-
-		return this._db.batch(execTasks as AbstractBatch[]);
+	public batch(): BatchChain {
+		return this._db.batch();
 	}
 }

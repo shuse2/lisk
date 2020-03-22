@@ -51,32 +51,17 @@ export interface TransactionResponse {
 	readonly errors: ReadonlyArray<TransactionError>;
 }
 
-export interface StateStorePrepare {
-	readonly account: {
-		cache(
-			filterArray: ReadonlyArray<{ readonly [key: string]: string }>,
-		): Promise<ReadonlyArray<Account>>;
-	};
-}
-
-export interface AccountState {
-	cache(
-		filterArray: ReadonlyArray<{ readonly [key: string]: string }>,
-	): Promise<ReadonlyArray<Account>>;
-	get(key: string): Promise<Account>;
-	getOrDefault(key: string): Promise<Account>;
-	find(func: (item: Account) => boolean): Account | undefined;
-	set(key: string, value: Account): void;
-}
-
-export interface ChainState {
-	readonly lastBlockHeader: BlockHeader;
-	readonly networkIdentifier: string;
-}
-
 export interface StateStore {
-	readonly account: AccountState;
-	readonly chain: ChainState;
+	readonly account: {
+		get(key: string): Promise<Account>;
+		getOrDefault(key: string): Promise<Account>;
+		find(func: (item: Account) => boolean): Account | undefined;
+		set(key: string, value: Account): void;
+	};
+	readonly chain: {
+		readonly lastBlockHeader: BlockHeader;
+		readonly networkIdentifier: string;
+	};
 }
 
 export const ENTITY_ACCOUNT = 'account';
@@ -309,14 +294,6 @@ export abstract class BaseTransaction {
 		errors.push(...assetErrors);
 
 		return createResponse(this.id, errors);
-	}
-
-	public async prepare(store: StateStorePrepare): Promise<void> {
-		await store.account.cache([
-			{
-				address: this.senderId,
-			},
-		]);
 	}
 
 	public async verifySignatures(

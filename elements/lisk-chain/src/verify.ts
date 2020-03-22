@@ -25,20 +25,7 @@ import {
 	Context,
 	ExceptionOptions,
 	MatcherTransaction,
-	Storage,
 } from './types';
-
-export const verifyBlockNotExists = async (
-	storage: Storage,
-	block: BlockInstance,
-) => {
-	const isPersisted = await storage.entities.Block.isPersisted({
-		id: block.id,
-	});
-	if (isPersisted) {
-		throw new Error(`Block ${block.id} already exists`);
-	}
-};
 
 export const verifyPreviousBlockId = (
 	block: BlockInstance,

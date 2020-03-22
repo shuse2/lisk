@@ -14,11 +14,7 @@
  */
 import { validator } from '@liskhq/lisk-validator';
 
-import {
-	BaseTransaction,
-	StateStore,
-	StateStorePrepare,
-} from './base_transaction';
+import { BaseTransaction, StateStore } from './base_transaction';
 import { DELEGATE_NAME_FEE } from './constants';
 import { convertToAssetError, TransactionError } from './errors';
 import { Account, TransactionJSON } from './transaction_types';
@@ -57,17 +53,6 @@ export class DelegateTransaction extends BaseTransaction {
 		const { username } = this.asset;
 
 		return Buffer.from(username, 'utf8');
-	}
-
-	public async prepare(store: StateStorePrepare): Promise<void> {
-		await store.account.cache([
-			{
-				address: this.senderId,
-			},
-			{
-				username: this.asset.username,
-			},
-		]);
 	}
 
 	protected verifyAgainstTransactions(
