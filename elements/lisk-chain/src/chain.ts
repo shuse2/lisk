@@ -187,8 +187,6 @@ export class Chain {
 	private readonly blocksVerify: BlocksVerify;
 	private readonly _networkIdentifier: string;
 	private readonly db: DB;
-	public readonly dataAccess: DataAccess;
-	public readonly slots: Slots;
 	private readonly blockRewardArgs: BlockRewardOptions;
 	private readonly exceptions: ExceptionOptions;
 	private readonly genesisBlock: BlockInstance;
@@ -430,12 +428,10 @@ export class Chain {
 			if (blockExist) {
 				throw new Error(`Block with ${blockInstance.id} already exists`);
 			}
-			const {
-				transactionsResponses: persistedResponse,
-			} = await checkPersistedTransactions(this.dataAccess)(
-				blockInstance.transactions,
-			);
-			const invalidPersistedResponse = persistedResponse.find(
+			const transactionsResponses = await checkPersistedTransactions(
+				this.dataAccess,
+			)(blockInstance.transactions);
+			const invalidPersistedResponse = transactionsResponses.find(
 				transactionResponse =>
 					transactionResponse.status !== TransactionStatus.OK,
 			);

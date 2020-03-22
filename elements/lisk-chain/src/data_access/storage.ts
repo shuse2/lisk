@@ -26,6 +26,7 @@ import {
 	DB_KEY_BLOCKID_BLOCK,
 	DB_KEY_BLOCKID_TXIDS,
 	DB_KEY_CHAIN_STATE,
+	DB_KEY_CONSENSUS_STATE,
 	DB_KEY_HEIGHT_BLOCKID,
 	DB_KEY_TEMPBLOCK_HEIGHT_BLOCK,
 	DB_KEY_TXID_TX,
@@ -371,9 +372,17 @@ export class Storage {
 		ConsensusState
 	*/
 	public async getConsensusState(key: string): Promise<string | undefined> {
-		const value = await this._storage.entities.ConsensusState.getKey(key);
+		const fullKey = `${DB_KEY_CONSENSUS_STATE}:${key}`;
+		try {
+			const value = await this._db.get(fullKey);
 
-		return value;
+			return value;
+		} catch (error) {
+			if (error.notFound) {
+				return undefined;
+			}
+			throw error;
+		}
 	}
 
 	/*
