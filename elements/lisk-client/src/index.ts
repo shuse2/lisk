@@ -19,7 +19,6 @@ import * as passphraseModule from '@liskhq/lisk-passphrase';
 import * as transactionsModule from '@liskhq/lisk-transactions';
 import { Buffer as BrowserBuffer } from 'buffer';
 
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (!global.Buffer) {
 	global.Buffer = BrowserBuffer;
 }
