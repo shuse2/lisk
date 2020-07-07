@@ -16,7 +16,7 @@ import { BatchChain } from '@liskhq/lisk-db';
 import { DataAccess } from '../data_access';
 import { BlockHeader, StateDiff } from '../types';
 import { DB_KEY_CHAIN_STATE } from '../data_access/constants';
-import { calculateDiff } from '../diff';
+import { calculateDiffTemp } from '../diff';
 
 interface AdditionalInformation {
 	readonly lastBlockHeader: BlockHeader;
@@ -121,7 +121,7 @@ export class ChainStateStore {
 			batch.put(dbKey, updatedValue);
 
 			if (this._initialValue.length) {
-				const diff = calculateDiff(
+				const diff = calculateDiffTemp(
 					this._initialValue[key] as Buffer,
 					updatedValue,
 				);
