@@ -51,6 +51,8 @@ export class IPCChannel implements Channel {
 		this._actionRPCConnectingServerSocketPath = socketsDir.rpc;
 		this._eventPubSocketPath = `unix://${path.join(socketsDir.root, 'pub_socket.sock')}`;
 		this._eventSubSocketPath = `unix://${path.join(socketsDir.root, 'sub_socket.sock')}`;
+		this._pubSocket = axon.socket('push', {}) as PushSocket;
+		this._subSocket = axon.socket('sub', {}) as SubSocket;
 		this._rpcClient = new RPCClient(axon.socket('req') as ReqSocket);
 		this._events = new EventEmitter();
 	}
