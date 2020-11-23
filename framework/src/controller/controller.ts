@@ -221,7 +221,7 @@ export class Controller {
 
 		this.logger.info({ name, version, alias: pluginAlias }, 'Loading child-process plugin');
 
-		const program = path.resolve(__dirname, 'child_process_loader.js');
+		const program = path.resolve(__dirname, 'child_process_loader');
 
 		const parameters = [getPluginExportPath(Klass) as string, Klass.name];
 
