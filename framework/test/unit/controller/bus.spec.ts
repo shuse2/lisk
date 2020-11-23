@@ -29,9 +29,6 @@ jest.mock('ws');
 
 describe('Bus', () => {
 	const config: any = {
-		ipc: {
-			enabled: false,
-		},
 		socketsPath: {
 			root: '',
 		},

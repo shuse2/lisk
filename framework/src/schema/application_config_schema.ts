@@ -41,14 +41,6 @@ export const applicationConfigSchema = {
 			description:
 				'The root path for storing temporary pid and socket file and data. Restricted length due to unix domain socket path length limitations.',
 		},
-		ipc: {
-			type: 'object',
-			properties: {
-				enabled: {
-					type: 'boolean',
-				},
-			},
-		},
 		logger: {
 			type: 'object',
 			required: ['fileLogLevel', 'logFileName', 'consoleLogLevel'],
@@ -368,13 +360,15 @@ export const applicationConfigSchema = {
 		version: '0.0.0',
 		networkVersion: '1.1',
 		rootPath: '~/.lisk',
-		ipc: {
-			enabled: false,
-		},
 		logger: {
 			fileLogLevel: 'info',
 			consoleLogLevel: 'none',
 			logFileName: 'lisk.log',
+		},
+		rpc: {
+			enable: false,
+			mode: 'ipc',
+			port: 8080,
 		},
 		genesisConfig: {
 			blockTime: 10,
@@ -405,7 +399,6 @@ export const applicationConfigSchema = {
 			seedPeers: [],
 			port: 5000,
 		},
-		plugins: {},
 		transactionPool: {
 			maxTransactions: 4096,
 			maxTransactionsPerAccount: 64,
@@ -413,10 +406,6 @@ export const applicationConfigSchema = {
 			minEntranceFeePriority: '0',
 			minReplacementFeeDifference: '10',
 		},
-		rpc: {
-			enable: false,
-			mode: 'ipc',
-			port: 8080,
-		},
+		plugins: {},
 	},
 };

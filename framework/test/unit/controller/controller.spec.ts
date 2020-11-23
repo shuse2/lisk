@@ -75,9 +75,6 @@ describe('Controller Class', () => {
 	};
 	const config = {
 		rootPath: '~/.lisk',
-		ipc: {
-			enabled: false,
-		},
 		rpc: {
 			enable: false,
 			mode: 'ipc',
@@ -100,9 +97,6 @@ describe('Controller Class', () => {
 	};
 	const configController = {
 		dataPath: '~/.lisk/#LABEL',
-		ipc: {
-			enabled: false,
-		},
 		dirs: systemDirs,
 		socketsPath: {
 			root: `unix://${systemDirs.sockets}`,
