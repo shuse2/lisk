@@ -109,7 +109,7 @@ export const applicationConfigSchema = {
 					// eslint-disable-next-line @typescript-eslint/no-magic-numbers
 					minimum: 10 * 1024, // Kilo Bytes
 					// eslint-disable-next-line @typescript-eslint/no-magic-numbers
-					maximum: 30 * 1024, // Kilo Bytes
+					maximum: 3000 * 1024, // Kilo Bytes
 					description: 'Maximum number of transactions allowed per block',
 				},
 				rewards: {
