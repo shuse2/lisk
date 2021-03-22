@@ -136,9 +136,7 @@ export const recursiveTypeCast = (
 					}
 
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
-					(object[key] as any)[i] = mappers[mode][(schemaProp.items as SchemaScalarItem).dataType](
-						value[i],
-					);
+					(object[key] as any)[i] = mappers[mode][schemaProp.items.dataType](value[i]);
 				}
 			}
 			dataPath.pop();
