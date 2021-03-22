@@ -19,7 +19,6 @@ import {
 	IteratorReturnValue,
 	SchemaPair,
 	SchemaProps,
-	SchemaScalarItem,
 } from './types';
 
 type mapperFunction = (value: BaseTypes) => BaseTypes;
