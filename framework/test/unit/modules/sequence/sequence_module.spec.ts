@@ -20,6 +20,10 @@ import { InvalidNonceError, SequenceModule } from '../../../../src/modules/seque
 import { TransferAsset } from '../../../../src/modules/token';
 import * as testing from '../../../../src/testing';
 
+jest.mock('@liskhq/lisk-cryptography', () => ({
+	...jest.requireActual('@liskhq/lisk-cryptography'),
+}));
+
 describe('sequence module', () => {
 	let sequenceModule: SequenceModule;
 	const senderAddress = cryptography.getRandomBytes(20);
