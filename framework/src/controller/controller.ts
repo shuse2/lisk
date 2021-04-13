@@ -126,7 +126,6 @@ export class Controller {
 				? plugins
 				: [...Object.keys(this._inMemoryPlugins), ...Object.keys(this._childProcesses)];
 
-		const errors = [];
 
 		for (const alias of pluginsToUnload) {
 			try {
@@ -142,12 +141,8 @@ export class Controller {
 				}
 			} catch (error) {
 				this.logger.error(error);
-				errors.push(error);
+				throw error;
 			}
-		}
-
-		if (errors.length) {
-			throw new Error('Unload Plugins failed');
 		}
 	}
 
